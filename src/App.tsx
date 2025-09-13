@@ -139,6 +139,29 @@ export default function App() {
     return () => window.removeEventListener('resize', measure)
   }, [])
   const isSheetOpen = sheetHeight > closedHeight + 2
+  const LS_IDEAS = 'phasee.ideas.v1'
+
+  // Load persisted ideas on first mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_IDEAS)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          setIdeas(parsed)
+        }
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Persist ideas whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_IDEAS, JSON.stringify(ideas))
+    } catch {}
+  }, [ideas])
+
   const hasScheduledForSelection = useMemo(() => {
     for (const iso of selectedDates) {
       if (ideas.some(i => i.accepted && i.assignedDate === iso)) return true
@@ -172,13 +195,24 @@ export default function App() {
   function handleGenerate() {
     const selectedISOList = Array.from(selectedDates).sort()
     const sourceDates = selectedISOList.length > 0 ? selectedISOList : [todayISO]
-    const count = Math.min(30, Math.max(1, sourceDates.length))
-    const next: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
-      const g = generateIdea(profile, notes)
-      // Propose the date visually on the card, but do NOT schedule yet
-      return { id: generateId(), visual: g.visual, copy: g.copy, platform, proposedDate: iso, accepted: false }
+    const count = Math.min(10, Math.max(1, sourceDates.length))
+    fetch('/api/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile, notes, count })
+    }).then(r=>r.json()).then(data => {
+      const fromApi: { visual:string; copy:string }[] = Array.isArray(data?.ideas)? data.ideas : []
+      const ideasToAdd: IdeaCard[] = (fromApi.length? fromApi : Array.from({length: count}, ()=> generateIdea(profile, notes))).map((g, idx) => {
+        const iso = sourceDates[idx % sourceDates.length]
+        return { id: generateId(), visual: g.visual, copy: g.copy, platform, proposedDate: iso, accepted: false }
+      })
+      setIdeas(prev => [...prev, ...ideasToAdd])
+    }).catch(() => {
+      const ideasFallback: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
+        const g = generateIdea(profile, notes)
+        return { id: generateId(), visual: g.visual, copy: g.copy, platform, proposedDate: iso, accepted: false }
+      })
+      setIdeas(prev => [...prev, ...ideasFallback])
     })
-    setIdeas(prev => [...prev, ...next])
   }
   function handleRegenerateOne(id: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, ...generateIdea(profile, notes) } : it)) }
   function handleAssign(id: string, iso: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) }
@@ -251,6 +285,7 @@ export default function App() {
     // If a date is already designated on the card, just accept it and keep that date
     if (idea?.assignedDate) {
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
+      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea.id, visual: idea.visual, copy: idea.copy, assignedDate: idea.assignedDate, platform, accepted: true }) }) } catch {}
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -259,6 +294,7 @@ export default function App() {
       const target = idea?.proposedDate || todayISO
       handleAssign(id, target)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
+      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, assignedDate: target, platform, accepted: true }) }) } catch {}
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -268,6 +304,7 @@ export default function App() {
     const assignIso = preferred && !used.has(preferred) ? preferred : nextFromSelection
     handleAssign(id, assignIso)
     setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
+    try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, assignedDate: assignIso, platform, accepted: true }) }) } catch {}
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 
