@@ -105,6 +105,7 @@ function getPlatformColor(p: SocialPlatform): string {
 export default function App() {
   const today = new Date()
   const todayISO = fmtISO(today)
+  const [viewDate, setViewDate] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1))
   const LS_COMPLETED_PROFILE = 'phasee.completedProfile'
   const LS_SELECTED_PLAN = 'phasee.selectedPlan'
   const LS_PLAN_VALUE = 'phasee.plan'
@@ -123,9 +124,7 @@ export default function App() {
   const [dragXById, setDragXById] = useState<Record<string, number>>({})
   const [closedHeight, setClosedHeight] = useState<number>(56)
   const [sheetHeight, setSheetHeight] = useState<number>(56)
-  const [isSheetDragging, setIsSheetDragging] = useState<boolean>(false)
-  const sheetDragStartYRef = useRef<number>(0)
-  const sheetDragStartHRef = useRef<number>(56)
+  // Drag disabled for bottom sheet; tap to open/close only
   const sheetHeaderRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -139,6 +138,7 @@ export default function App() {
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+  const isSheetOpen = sheetHeight > closedHeight + 2
   const hasScheduledForSelection = useMemo(() => {
     for (const iso of selectedDates) {
       if (ideas.some(i => i.accepted && i.assignedDate === iso)) return true
@@ -148,23 +148,23 @@ export default function App() {
 
   const monthDays = useMemo(() => {
     const days: { day:number; iso:string }[] = []
-    const base = new Date(today.getFullYear(), today.getMonth(), 1)
+    const base = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
     const len = lastDay(base)
     for (let d = 1; d <= len; d++) {
       const dt = new Date(base.getFullYear(), base.getMonth(), d)
       days.push({ day: d, iso: fmtISO(dt) })
     }
     return days
-  }, [today])
+  }, [viewDate])
 
   // Sunday-first offset for the first row padding
   const firstDayOffset = useMemo(() => {
-    const base = new Date(today.getFullYear(), today.getMonth(), 1)
+    const base = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
     return base.getDay() // 0=Sun..6=Sat
-  }, [today])
+  }, [viewDate])
 
   const weekdays = ['SUN','MON','TUE','WED','THU','FRI','SAT']
-  const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(new Date(today.getFullYear(), today.getMonth(), 1))
+  const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(viewDate)
   const assignedUniqueDates = useMemo(() => new Set(ideas.filter(i=>i.assignedDate).map(i=>i.assignedDate as string)).size, [ideas])
   const remainingDays = useMemo(() => Math.max(0, planIdeaAllowance(plan) - assignedUniqueDates), [plan, assignedUniqueDates])
   const canUseCampaign = plan === 'd30'
@@ -250,7 +250,7 @@ export default function App() {
     const idea = ideas.find(i=>i.id===id)
     // If a date is already designated on the card, just accept it and keep that date
     if (idea?.assignedDate) {
-      setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true } : it))
+      setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -258,7 +258,7 @@ export default function App() {
     if (selectedISOList.length === 0) {
       const target = idea?.proposedDate || todayISO
       handleAssign(id, target)
-      setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true } : it))
+      setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -267,7 +267,7 @@ export default function App() {
     const nextFromSelection = selectedISOList.find(iso => !used.has(iso)) || selectedISOList[0]
     const assignIso = preferred && !used.has(preferred) ? preferred : nextFromSelection
     handleAssign(id, assignIso)
-    setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true } : it))
+    setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 
@@ -276,8 +276,9 @@ export default function App() {
   const MAX_DRAG = 140
 
   function onCardPointerDown(id: string, e: React.PointerEvent<HTMLDivElement>) {
+    const t = e.target as HTMLElement
+    if (t.closest('button, [role="button"], .date-trigger, select, textarea, input')) return
     dragStartXRef.current[id] = e.clientX
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
   }
 
   function onCardPointerMove(id: string, e: React.PointerEvent<HTMLDivElement>) {
@@ -292,11 +293,16 @@ export default function App() {
   }
 
   function onCardPointerUp(id: string, e: React.PointerEvent<HTMLDivElement>) {
-    const dx = dragXById[id] || 0
+    const dx = dragStartXRef.current[id] === undefined ? 0 : (dragXById[id] || 0)
     delete dragStartXRef.current[id]
     setDragXById(prev => ({ ...prev, [id]: 0 }))
     if (dx > SWIPE_THRESHOLD) {
-      assignToNextAvailableSelectedDate(id)
+      // Accept/schedule to the next available selected date
+      const selectedISOList = Array.from(selectedDates).sort()
+      const pool = selectedISOList.length === 0 ? [todayISO] : selectedISOList
+      const used = new Set(ideas.filter(i=>i.id!==id && i.assignedDate).map(i=>i.assignedDate as string))
+      const chosen = pool.find(iso => !used.has(iso)) || pool[0]
+      setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: chosen, accepted: true, platform } : it))
     } else if (dx < -SWIPE_THRESHOLD) {
       handleRegenerateOne(id)
     }
@@ -308,27 +314,7 @@ export default function App() {
     setSheetHeight(maxH)
   }
   function closeSchedule() { setSheetHeight(closedHeight) }
-  function onSheetPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    setIsSheetDragging(true)
-    sheetDragStartYRef.current = e.clientY
-    sheetDragStartHRef.current = sheetHeight
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-  function onSheetPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!isSheetDragging) return
-    const dy = sheetDragStartYRef.current - e.clientY
-    const tentative = sheetDragStartHRef.current + dy
-    const minH = closedHeight
-    const maxH = Math.round(window.innerHeight * 0.85)
-    const clamped = Math.max(minH, Math.min(maxH, tentative))
-    setSheetHeight(clamped)
-  }
-  function onSheetPointerUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (!isSheetDragging) return
-    setIsSheetDragging(false)
-    const mid = Math.round(window.innerHeight * 0.37)
-    if (sheetHeight < mid) closeSchedule(); else openScheduleHalf()
-  }
+  // Pointer drag handlers removed
   function onSheetHeaderClick() {
     const half = Math.round(window.innerHeight * 0.55)
     if (!hasScheduledForSelection) {
@@ -674,7 +660,7 @@ export default function App() {
 
   return (
     <div className="screen">
-      <div className="frame">
+      <div className="frame" onClick={(e)=>{ if (sheetHeight > closedHeight + 2) { const el = e.target as HTMLElement; if (!el.closest('.schedule-sheet')) closeSchedule() } }}>
         <div className="header-bar">
           <button className="icon-btn" aria-label="Profile" onClick={()=>setScreen('profile')}>
             <img src="/profile.svg" alt="Profile" />
@@ -685,9 +671,26 @@ export default function App() {
           </button>
         </div>
         <div className="home-grid">
-          <div className="calendar card">
+          <div className="calendar card" onClick={(e)=>{ const target = e.target as HTMLElement; if (!target.closest('.schedule-sheet')) { /* noop for now */ } }}>
             <div className="row center">
-              <div className="title small">{monthLabel}</div>
+              <div className="month-scroller" role="tablist" aria-label="Select month">
+                {Array.from({ length: 12 }).map((_, idx) => {
+                  const base = new Date(today.getFullYear(), today.getMonth(), 1)
+                  const d = new Date(base.getFullYear(), base.getMonth() + idx, 1)
+                  const key = `${d.getFullYear()}-${d.getMonth()}`
+                  const label = new Intl.DateTimeFormat(undefined, { month: 'short' }).format(d)
+                  const selected = d.getFullYear()===viewDate.getFullYear() && d.getMonth()===viewDate.getMonth()
+                  return (
+                    <button
+                      key={key}
+                      role="tab"
+                      aria-selected={selected}
+                      className={'month-chip' + (selected?' selected':'')}
+                      onClick={()=>setViewDate(d)}
+                    >{label}</button>
+                  )
+                })}
+              </div>
             </div>
             <div className="calendar-weekdays">
               {weekdays.map(w => (
@@ -745,27 +748,24 @@ export default function App() {
           </div>
 
           {/* Bottom Sheet: Scheduled posts */}
+          {isSheetOpen && (
+            <div className="sheet-backdrop" onClick={()=>closeSchedule()} />
+          )}
           <div
             className="schedule-sheet"
             style={{ height: `${sheetHeight}px` }}
+            onClick={(e)=>{ e.stopPropagation() }}
           >
-            <div
-              className="sheet-header"
-              ref={sheetHeaderRef}
-              onClick={onSheetHeaderClick}
-              onPointerDown={onSheetPointerDown}
-              onPointerMove={onSheetPointerMove}
-              onPointerUp={onSheetPointerUp}
-            >
+            <div className="sheet-header" ref={sheetHeaderRef} onClick={onSheetHeaderClick}>
               <div className="sheet-title">SCHEDULE</div>
               <button className="share-btn" aria-label="Email schedule" title="Email schedule" onClick={(e)=>{ e.stopPropagation(); handleEmailSchedule() }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                <span>Email</span>
               </button>
             </div>
-            <div className="sheet-body">
+            <div className="sheet-body" onClick={(e)=>{ e.stopPropagation() }}>
               {Array.from(selectedDates).sort().map((iso) => {
                 const scheduled = ideas.filter(i => i.accepted && i.assignedDate === iso)
+                if (scheduled.length === 0) return null
                 const groups = scheduled.reduce<Record<SocialPlatform, IdeaCard[]>>((acc, it) => {
                   const key = (it.platform || platform) as SocialPlatform
                   if (!acc[key]) acc[key] = []
@@ -778,37 +778,30 @@ export default function App() {
                       <div className="scheduled-date">{fmtMDYFromISO(iso)}</div>
                       <div className="scheduled-count muted small">{scheduled.length} scheduled</div>
                     </div>
-                    {scheduled.length === 0 ? (
-                      <div className="muted small">Nothing scheduled yet</div>
-                    ) : (
-                      <div className="scheduled-groups">
-                        {Object.entries(groups).map(([p, items]) => (
-                          <div key={`${iso}-${p}`} className="scheduled-group">
-                            <div className="group-head" />
-                            <ul className="group-list">
-                              {items.map(it => (
-                                <li key={it.id} className="group-item">
-                                  <span className="gi-icon">{renderPlatformIcon(p as SocialPlatform, 14)}</span>
-                                  <span className="gi-visual">{it.visual.slice(0, 40)}{it.visual.length>40?'…':''}</span>
-                                  <button className="icon-btn text" aria-label="Edit" title="Edit" onClick={()=>handleEditScheduled(it.id)}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                  </button>
-                                  <button className="icon-btn text" aria-label="Delete" title="Delete" onClick={()=>handleDeleteScheduled(it.id)}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="scheduled-groups">
+                      {Object.entries(groups).map(([p, items]) => (
+                        <div key={`${iso}-${p}`} className="scheduled-group">
+                          <div className="group-head" />
+                          <ul className="group-list">
+                            {items.map(it => (
+                              <li key={it.id} className="group-item">
+                                <span className="gi-icon">{renderPlatformIcon(p as SocialPlatform, 14)}</span>
+                                <span className="gi-visual">{it.visual.slice(0, 40)}{it.visual.length>40?'…':''}</span>
+                                <button className="icon-btn text" aria-label="Edit" title="Edit" onClick={()=>handleEditScheduled(it.id)}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                </button>
+                                <button className="icon-btn text" aria-label="Delete" title="Delete" onClick={()=>handleDeleteScheduled(it.id)}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )
               })}
-              {selectedDates.size===0 && (
-                <div className="scheduled card"><div className="muted small">Nothing scheduled yet</div></div>
-              )}
             </div>
           </div>
 
@@ -901,7 +894,7 @@ export default function App() {
                         <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
                         </button>
-                        <button className="icon-btn ghost accept-btn" aria-label="Accept" title="Accept/Schedule" onClick={()=>{ assignToNextAvailableSelectedDate(it.id); }}>
+                        <button className="icon-btn ghost accept-btn" aria-label="Accept" title="Accept/Schedule" onClick={()=>assignToNextAvailableSelectedDate(it.id)}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </button>
                       </div>
