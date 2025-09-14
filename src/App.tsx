@@ -858,27 +858,20 @@ export default function App() {
               })}
             </div>
             <div className="row" style={{ gridAutoFlow: 'unset', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-              <div className="muted small left">Selected days: {selectedDates.size}</div>
-              {selectedDates.size > 0 && (
-                <button className="text" type="button" onClick={()=>setSelectedDates(new Set())}>Unselect All</button>
+              {selectedDates.size > 0 ? (
+                <button className="text unselect-btn" type="button" onClick={()=>setSelectedDates(new Set())}>Unselect All</button>
+              ) : <span />}
+              {ideas.some(i => i.accepted && i.assignedDate) && (
+                <button className="share-btn" aria-label="Share schedule" title="Share schedule" onClick={(e)=>{ e.stopPropagation(); handleEmailSchedule() }}>
+                  SHARE
+                </button>
               )}
             </div>
 
+
             {/* Schedule section moved here */}
             <div className="schedule-section">
-              <div className="schedule-header" onClick={onSheetHeaderClick}>
-                {(() => {
-                  const allScheduled = ideas.filter(i => i.accepted && i.assignedDate)
-                  if (allScheduled.length > 0) {
-                    return (
-                      <button className="share-btn" style={{ marginLeft: 'auto' }} aria-label="Share schedule" title="Share schedule" onClick={(e)=>{ e.stopPropagation(); handleEmailSchedule() }}>
-                        SHARE
-                      </button>
-                    )
-                  }
-                  return null
-                })()}
-              </div>
+              <div className="schedule-header" onClick={onSheetHeaderClick} />
               <div className="schedule-body">
                 {(() => {
                   // Get all scheduled ideas, grouped by date
@@ -911,14 +904,18 @@ export default function App() {
                             <div className="group-head" />
                             <ul className="group-list">
                               {items.map(it => (
-                                <li key={`${it.id}-${iso}`} className="group-item">
-                                  <div className="item-platform" style={{ fontSize: '14px' }}>
-                                    {renderPlatformIcon(p as SocialPlatform, 14)}
-                                  </div>
-                                  <div className="item-content">
-                                    <div className="item-visual">{it.visual}</div>
-                                    <div className="item-copy">{it.copy}</div>
-                                  </div>
+                                <li key={`${it.id}-${iso}`} className="group-item" data-platform={p}>
+                                  <span className="gi-time">12:00</span>
+                                  <span className="gi-icon">{renderPlatformIcon(p as SocialPlatform, 14)}</span>
+                                  <span className="gi-visual">
+                                    {`${it.visual.slice(0, 20)}${it.visual.length>20?'…':''} | ${it.copy.slice(0, 20)}${it.copy.length>20?'…':''}`}
+                                  </span>
+                                  <button className="icon-btn text" aria-label="Edit" title="Edit" onClick={()=>handleEditScheduled(it.id)}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                  </button>
+                                  <button className="icon-btn text" aria-label="Delete" title="Delete" onClick={()=>handleDeleteScheduled(it.id)}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+                                  </button>
                                 </li>
                               ))}
                             </ul>
@@ -935,16 +932,66 @@ export default function App() {
         </div>
       </div>
 
-      {/* Floating generator island at bottom */}
-      <div className="generator-island">
-        <button className="generator-toggle primary" onClick={handleGenerate} disabled={selectedDates.size === 0}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
-          </svg>
-          Create
-        </button>
-      </div>
+
+
+      {/* Floating Create Button - bottom of screen when no dates selected */}
+      {selectedDates.size === 0 && (
+        <div className="generator-floating">
+          <button className="generator-toggle" onClick={handleGenerate} disabled={selectedDates.size === 0}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+            </svg>
+            Create
+          </button>
+        </div>
+      )}
+
+      {/* Floating Create Overlay - appears above all content when dates selected */}
+      {selectedDates.size > 0 && (
+        <div className="generator-overlay">
+          <div className="generator-overlay-content">
+            <div className="generator-header">
+              <h3 className="generator-title">Got a direction? Let's build it!</h3>
+              <button className="generator-close-btn" onClick={() => setSelectedDates(new Set())}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="generator-subheader">
+              <div className="day-counter">
+                {selectedDates.size} day{selectedDates.size !== 1 ? 's' : ''} selected
+              </div>
+              <label className={`campaign-checkbox${selectedDates.size < 2 ? ' disabled' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={campaign}
+                  disabled={selectedDates.size < 2}
+                  onChange={e => setCampaign(e.target.checked)}
+                />
+                <span>Make it a campaign!</span>
+              </label>
+            </div>
+            <textarea 
+              className="generator-text-input"
+              placeholder="(New Product, Season Sales, &quot;Job Fair&quot; Promotion)"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+            />
+            <div className="generator-actions">
+              <button className="generator-toggle" onClick={handleGenerate} style={{ flex: 1 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+                </svg>
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Ideas section */}
       {visibleIdeas.length > 0 && (
