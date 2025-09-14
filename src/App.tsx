@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { SVGProps } from 'react'
 import './App.css'
 
-type Screen = 'login' | 'profile' | 'subscription' | 'home' | 'settings' | 'settings.personal' | 'settings.integrations' | 'settings.security' | 'settings.notifications' | 'settings.help'
+type Screen = 'login' | 'profile' | 'subscription' | 'home' | 'settings' | 'settings.personal' | 'settings.security' | 'settings.notifications' | 'settings.help'
 
 type BrandProfile = {
   brandName: string
@@ -22,7 +22,7 @@ type PlanKey = 'free3' | 'd30'
 
 type SocialPlatform = 'facebook' | 'instagram' | 'x'
 
-type IdeaCard = { id: string; visual: string; copy: string; platform: SocialPlatform; assignedDate?: string; proposedDate?: string; accepted?: boolean }
+type IdeaCard = { id: string; visual: string; copy: string; why: string; platform: SocialPlatform; assignedDate?: string; proposedDate?: string; accepted?: boolean }
 
 function fmtISO(d: Date) { return d.toISOString().slice(0,10) }
 function endOfMonth(date: Date) { return new Date(date.getFullYear(), date.getMonth() + 1, 0) }
@@ -93,7 +93,21 @@ function generateIdea(profile: BrandProfile, notes: string) {
   const seed = Math.random().toString(36).slice(2,6)
   const base = `${profile.industry || 'Brand'} • ${profile.tone || 'Friendly'}`
   const caps = [profile.hasPhotography?'photo':undefined, profile.hasVideo?'video':undefined, profile.hasDesign?'graphic':undefined].filter(Boolean).join('/')
-  return { visual: `Visual: ${caps || 'asset'} ${seed}`, copy: `Copy: ${base} — ${notes || 'engagement prompt'} (${seed})` }
+  const whyReasons = [
+    'Aligns with brand tone',
+    'Engages target audience', 
+    'Matches industry trends',
+    'Leverages available assets',
+    'Supports content goals',
+    'Builds brand awareness',
+    'Drives engagement'
+  ]
+  const why = whyReasons[Math.floor(Math.random() * whyReasons.length)]
+  return { 
+    visual: `Visual: ${caps || 'asset'} ${seed}`, 
+    copy: `Copy: ${base} — ${notes || 'engagement prompt'} (${seed})`,
+    why: why
+  }
 }
 
 function getPlatformColor(p: SocialPlatform): string {
@@ -112,6 +126,7 @@ export default function App() {
   const hasCompletedProfile = () => localStorage.getItem(LS_COMPLETED_PROFILE) === '1'
   const hasSelectedPlan = () => localStorage.getItem(LS_SELECTED_PLAN) === '1'
   const [screen, setScreen] = useState<Screen>('login')
+  const [activeSettingsItem, setActiveSettingsItem] = useState<string>('personal')
   const [profile, setProfile] = useState<BrandProfile>({ brandName:'', yearFounded:'', industry:'', audience:'', tone:'', hasPhotography:false, hasVideo:false, hasDesign:false, companyDescription:'', brandCulture:'', contentGoals:'' })
   const [plan, setPlan] = useState<PlanKey>('d30')
   const [ideas, setIdeas] = useState<IdeaCard[]>([])
@@ -120,6 +135,8 @@ export default function App() {
   const [campaign, setCampaign] = useState<boolean>(false)
   const [openCalendarFor, setOpenCalendarFor] = useState<string | null>(null)
   const [platform, setPlatform] = useState<SocialPlatform>('instagram')
+  const [editingCards, setEditingCards] = useState<Set<string>>(new Set())
+  const [showCampaignTooltip, setShowCampaignTooltip] = useState<boolean>(false)
   const dragStartXRef = useRef<Record<string, number>>({})
   const [dragXById, setDragXById] = useState<Record<string, number>>({})
   const [closedHeight, setClosedHeight] = useState<number>(56)
@@ -138,6 +155,17 @@ export default function App() {
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showCampaignTooltip && !(event.target as Element)?.closest('.campaign-help')) {
+        setShowCampaignTooltip(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [showCampaignTooltip])
   const isSheetOpen = sheetHeight > closedHeight + 2
   const LS_IDEAS = 'phasee.ideas.v1'
 
@@ -192,6 +220,8 @@ export default function App() {
   const remainingDays = useMemo(() => Math.max(0, planIdeaAllowance(plan) - assignedUniqueDates), [plan, assignedUniqueDates])
   const canUseCampaign = plan === 'd30'
 
+  const visibleIdeas = useMemo(() => ideas.filter(i => !i.accepted), [ideas])
+
   function handleGenerate() {
     const selectedISOList = Array.from(selectedDates).sort()
     const sourceDates = selectedISOList.length > 0 ? selectedISOList : [todayISO]
@@ -200,18 +230,20 @@ export default function App() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profile, notes, count })
     }).then(r=>r.json()).then(data => {
-      const fromApi: { visual:string; copy:string }[] = Array.isArray(data?.ideas)? data.ideas : []
+      const fromApi: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas)? data.ideas : []
       const ideasToAdd: IdeaCard[] = (fromApi.length? fromApi : Array.from({length: count}, ()=> generateIdea(profile, notes))).map((g, idx) => {
         const iso = sourceDates[idx % sourceDates.length]
-        return { id: generateId(), visual: g.visual, copy: g.copy, platform, proposedDate: iso, accepted: false }
+        return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation', platform, proposedDate: iso, accepted: false }
       })
       setIdeas(prev => [...prev, ...ideasToAdd])
+      setSelectedDates(new Set())
     }).catch(() => {
       const ideasFallback: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
         const g = generateIdea(profile, notes)
-        return { id: generateId(), visual: g.visual, copy: g.copy, platform, proposedDate: iso, accepted: false }
+        return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why, platform, proposedDate: iso, accepted: false }
       })
       setIdeas(prev => [...prev, ...ideasFallback])
+      setSelectedDates(new Set())
     })
   }
   function handleRegenerateOne(id: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, ...generateIdea(profile, notes) } : it)) }
@@ -285,7 +317,7 @@ export default function App() {
     // If a date is already designated on the card, just accept it and keep that date
     if (idea?.assignedDate) {
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
-      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea.id, visual: idea.visual, copy: idea.copy, assignedDate: idea.assignedDate, platform, accepted: true }) }) } catch {}
+      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea.id, visual: idea.visual, copy: idea.copy, why: idea.why, assignedDate: idea.assignedDate, platform, accepted: true }) }) } catch {}
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -294,7 +326,7 @@ export default function App() {
       const target = idea?.proposedDate || todayISO
       handleAssign(id, target)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
-      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, assignedDate: target, platform, accepted: true }) }) } catch {}
+      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, why: idea?.why, assignedDate: target, platform, accepted: true }) }) } catch {}
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -304,7 +336,7 @@ export default function App() {
     const assignIso = preferred && !used.has(preferred) ? preferred : nextFromSelection
     handleAssign(id, assignIso)
     setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
-    try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, assignedDate: assignIso, platform, accepted: true }) }) } catch {}
+    try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, why: idea?.why, assignedDate: assignIso, platform, accepted: true }) }) } catch {}
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 
@@ -354,12 +386,18 @@ export default function App() {
   // Pointer drag handlers removed
   function onSheetHeaderClick() {
     const half = Math.round(window.innerHeight * 0.55)
-    if (!hasScheduledForSelection) {
-      const peek = closedHeight + 24
-      if (sheetHeight <= closedHeight + 2) setSheetHeight(peek); else closeSchedule()
-      return
+    const full = Math.round(window.innerHeight * 0.9)
+    // Always allow opening/closing regardless of scheduled content
+    if (sheetHeight <= closedHeight + 2) {
+      // If closed, open to half height
+      openScheduleHalf()
+    } else if (sheetHeight < half - 20) {
+      // If partially open, open fully
+      setSheetHeight(full)
+    } else {
+      // If open, close
+      closeSchedule()
     }
-    if (sheetHeight < half - 20) openScheduleHalf(); else closeSchedule()
   }
 
   function handleLogin() {
@@ -384,9 +422,26 @@ export default function App() {
             <div className="settings-header"><span className="settings-icon">👤</span><span className="settings-title">Personal Details</span></div>
             <div className="divider" />
             <div className="stack">
-              <label className="inline">Name <input placeholder="Your name" /></label>
-              <label className="inline">Email <input placeholder="name@company.com" /></label>
-              <label className="inline">Company <input placeholder="Company" /></label>
+              <div className="section">Account Information</div>
+              <label className="inline">Full Name <input placeholder="Your full name" value="John Smith" /></label>
+              <label className="inline">Email <input placeholder="name@company.com" value="john@company.com" /></label>
+              <label className="inline">Company <input placeholder="Company name" value="Acme Corp" /></label>
+              <label className="inline">Role <input placeholder="Your role" value="Marketing Manager" /></label>
+              
+              <div className="section">Preferences</div>
+              <label className="check">
+                <input type="checkbox" defaultChecked />
+                <span>Email notifications</span>
+              </label>
+              <label className="check">
+                <input type="checkbox" />
+                <span>Weekly summary reports</span>
+              </label>
+              
+              <div className="row split">
+                <button className="ghost">Cancel</button>
+                <button className="primary">Save Changes</button>
+              </div>
             </div>
           </div>
         </div>
@@ -394,30 +449,6 @@ export default function App() {
     )
   }
 
-  if (screen === 'settings.integrations') {
-    return (
-      <div className="screen">
-        <div className="frame">
-          <div className="header-bar">
-            <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('settings')}>←</button>
-            <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
-            </button>
-            <span />
-          </div>
-          <div className="card settings">
-            <div className="settings-header"><span className="settings-icon">🔗</span><span className="settings-title">Integrations</span></div>
-            <div className="divider" />
-            <div className="stack">
-              <label className="inline">Facebook <button className="ghost">Connect</button></label>
-              <label className="inline">Instagram <button className="ghost">Connect</button></label>
-              <label className="inline">X (Twitter) <button className="ghost">Connect</button></label>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (screen === 'settings.security') {
     return (
@@ -434,8 +465,22 @@ export default function App() {
             <div className="settings-header"><span className="settings-icon">🛡️</span><span className="settings-title">Security</span></div>
             <div className="divider" />
             <div className="stack">
-              <label className="inline">Password <button className="ghost">Change</button></label>
-              <label className="inline">Two‑Factor Auth <input type="checkbox" /></label>
+              <div className="section">Password & Authentication</div>
+              <label className="inline">Password <button className="ghost">Change Password</button></label>
+              <label className="check">
+                <input type="checkbox" />
+                <span>Enable two-factor authentication</span>
+              </label>
+              <p className="muted left small">Add an extra layer of security to your account</p>
+              
+              <div className="section">Login Activity</div>
+              <div className="muted left">Last login: Today at 2:30 PM</div>
+              <div className="muted left">Device: Chrome on Windows</div>
+              <button className="ghost" style={{justifySelf: 'start', marginTop: '8px'}}>View All Sessions</button>
+              
+              <div className="section">Data & Privacy</div>
+              <button className="ghost" style={{justifySelf: 'start'}}>Download My Data</button>
+              <button className="ghost" style={{justifySelf: 'start', color: '#ef4444'}}>Delete Account</button>
             </div>
           </div>
         </div>
@@ -458,8 +503,38 @@ export default function App() {
             <div className="settings-header"><span className="settings-icon">🔔</span><span className="settings-title">Notifications</span></div>
             <div className="divider" />
             <div className="stack">
-              <label className="inline">Email Alerts <input type="checkbox" defaultChecked /></label>
-              <label className="inline">Weekly Summary <input type="checkbox" /></label>
+              <div className="section">Email Notifications</div>
+              <label className="check">
+                <input type="checkbox" defaultChecked />
+                <span>New ideas generated</span>
+              </label>
+              <label className="check">
+                <input type="checkbox" defaultChecked />
+                <span>Schedule reminders</span>
+              </label>
+              <label className="check">
+                <input type="checkbox" />
+                <span>Weekly performance summary</span>
+              </label>
+              <label className="check">
+                <input type="checkbox" />
+                <span>Product updates & tips</span>
+              </label>
+              
+              <div className="section">Push Notifications</div>
+              <label className="check">
+                <input type="checkbox" defaultChecked />
+                <span>Post publishing reminders</span>
+              </label>
+              <label className="check">
+                <input type="checkbox" />
+                <span>Campaign milestones</span>
+              </label>
+              
+              <div className="row split">
+                <button className="ghost">Reset to Default</button>
+                <button className="primary">Save Preferences</button>
+              </div>
             </div>
           </div>
         </div>
@@ -479,10 +554,23 @@ export default function App() {
             <span />
           </div>
           <div className="card settings">
-            <div className="settings-header"><span className="settings-icon">❓</span><span className="settings-title">Help</span></div>
+            <div className="settings-header"><span className="settings-icon">❓</span><span className="settings-title">Help & Support</span></div>
             <div className="divider" />
             <div className="stack">
-              <p className="muted left">Visit our help center or contact support@phasee.app</p>
+              <div className="section">Get Help</div>
+              <button className="ghost" style={{justifySelf: 'start'}}>📚 Help Center</button>
+              <button className="ghost" style={{justifySelf: 'start'}}>💬 Contact Support</button>
+              <button className="ghost" style={{justifySelf: 'start'}}>🎥 Video Tutorials</button>
+              
+              <div className="section">Resources</div>
+              <button className="ghost" style={{justifySelf: 'start'}}>📖 User Guide</button>
+              <button className="ghost" style={{justifySelf: 'start'}}>🚀 What's New</button>
+              <button className="ghost" style={{justifySelf: 'start'}}>💡 Feature Requests</button>
+              
+              <div className="section">Contact Information</div>
+              <div className="muted left">Email: support@phasee.app</div>
+              <div className="muted left">Response time: Within 24 hours</div>
+              <div className="muted left">Version: 2.1.0</div>
             </div>
           </div>
         </div>
@@ -509,7 +597,7 @@ export default function App() {
             <div className="divider" />
 
             <div className="settings-list">
-              <button className="settings-item" type="button" onClick={()=>setScreen('settings.personal')}>
+              <button className={`settings-item${activeSettingsItem === 'personal' ? ' active' : ''}`} type="button" onClick={()=>{setActiveSettingsItem('personal'); setScreen('settings.personal')}}>
                 <span className="item-icon" aria-hidden="true">
                   {/* user */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -517,23 +605,15 @@ export default function App() {
                 <span className="item-label">Personal Details</span>
               </button>
 
-              <button className="settings-item" type="button" onClick={()=>setScreen('settings.integrations')}>
-                <span className="item-icon" aria-hidden="true">
-                  {/* link */}
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l3.54-3.54a5 5 0 0 0-7.07-7.07L11 4"/><path d="M14 11a5 5 0 0 0-7.07 0L3.39 14.54a5 5 0 0 0 7.07 7.07L13 20"/></svg>
-                </span>
-                <span className="item-label">Integrations</span>
-              </button>
-
-              <button className="settings-item active" type="button" onClick={()=>setScreen('subscription')}>
-                <span className="item-icon" aria-hidden="true">
+              <button className={`settings-item subscription-item${activeSettingsItem === 'subscription' ? ' active' : ''}`} type="button" onClick={()=>{setActiveSettingsItem('subscription'); setScreen('subscription')}}>
+                <span className="item-icon crown-icon" aria-hidden="true">
                   {/* crown */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l5 4 4-6 4 6 5-4v11H3z"/></svg>
                 </span>
-                <span className="item-label">Subscription</span>
+                <span className="item-label subscription-label">Subscription</span>
               </button>
 
-              <button className="settings-item" type="button" onClick={()=>setScreen('settings.security')}>
+              <button className={`settings-item${activeSettingsItem === 'security' ? ' active' : ''}`} type="button" onClick={()=>{setActiveSettingsItem('security'); setScreen('settings.security')}}>
                 <span className="item-icon" aria-hidden="true">
                   {/* shield */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -541,7 +621,7 @@ export default function App() {
                 <span className="item-label">Security</span>
               </button>
 
-              <button className="settings-item" type="button" onClick={()=>setScreen('settings.notifications')}>
+              <button className={`settings-item${activeSettingsItem === 'notifications' ? ' active' : ''}`} type="button" onClick={()=>{setActiveSettingsItem('notifications'); setScreen('settings.notifications')}}>
                 <span className="item-icon" aria-hidden="true">
                   {/* bell */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -549,7 +629,7 @@ export default function App() {
                 <span className="item-label">Notifications</span>
               </button>
 
-              <button className="settings-item" type="button" onClick={()=>setScreen('settings.help')}>
+              <button className={`settings-item${activeSettingsItem === 'help' ? ' active' : ''}`} type="button" onClick={()=>{setActiveSettingsItem('help'); setScreen('settings.help')}}>
                 <span className="item-icon" aria-hidden="true">
                   {/* help */}
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
@@ -696,6 +776,7 @@ export default function App() {
   }
 
   return (
+    <>
     <div className="screen">
       <div className="frame" onClick={(e)=>{ if (sheetHeight > closedHeight + 2) { const el = e.target as HTMLElement; if (!el.closest('.schedule-sheet')) closeSchedule() } }}>
         <div className="header-bar">
@@ -750,7 +831,7 @@ export default function App() {
                 const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
                 const isThree = entries.length >= 3
                 const hasScheduled = icons.length > 0
-                const renderSelected = isSelected && !hasScheduled
+                 const renderSelected = isSelected
                 return (
                   <button
                     key={d.iso}
@@ -782,108 +863,96 @@ export default function App() {
                 <button className="text" type="button" onClick={()=>setSelectedDates(new Set())}>Unselect All</button>
               )}
             </div>
-          </div>
 
-          {/* Bottom Sheet: Scheduled posts */}
-          {isSheetOpen && (
-            <div className="sheet-backdrop" onClick={()=>closeSchedule()} />
-          )}
-          <div
-            className="schedule-sheet"
-            style={{ height: `${sheetHeight}px` }}
-            onClick={(e)=>{ e.stopPropagation() }}
-          >
-            <div className="sheet-header" ref={sheetHeaderRef} onClick={onSheetHeaderClick}>
-              <div className="sheet-title">SCHEDULE</div>
-              <button className="share-btn" aria-label="Email schedule" title="Email schedule" onClick={(e)=>{ e.stopPropagation(); handleEmailSchedule() }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              </button>
-            </div>
-            <div className="sheet-body" onClick={(e)=>{ e.stopPropagation() }}>
-              {Array.from(selectedDates).sort().map((iso) => {
-                const scheduled = ideas.filter(i => i.accepted && i.assignedDate === iso)
-                if (scheduled.length === 0) return null
-                const groups = scheduled.reduce<Record<SocialPlatform, IdeaCard[]>>((acc, it) => {
-                  const key = (it.platform || platform) as SocialPlatform
-                  if (!acc[key]) acc[key] = []
-                  acc[key].push(it)
-                  return acc
-                }, {} as Record<SocialPlatform, IdeaCard[]>)
-                return (
-                  <div key={`sheet-${iso}`} className="scheduled card">
-                    <div className="scheduled-header">
-                      <div className="scheduled-date">{fmtMDYFromISO(iso)}</div>
-                      <div className="scheduled-count muted small">{scheduled.length} scheduled</div>
-                    </div>
-                    <div className="scheduled-groups">
-                      {Object.entries(groups).map(([p, items]) => (
-                        <div key={`${iso}-${p}`} className="scheduled-group">
-                          <div className="group-head" />
-                          <ul className="group-list">
-                            {items.map(it => (
-                              <li key={it.id} className="group-item">
-                                <span className="gi-icon">{renderPlatformIcon(p as SocialPlatform, 14)}</span>
-                                <span className="gi-visual">{it.visual.slice(0, 40)}{it.visual.length>40?'…':''}</span>
-                                <button className="icon-btn text" aria-label="Edit" title="Edit" onClick={()=>handleEditScheduled(it.id)}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                </button>
-                                <button className="icon-btn text" aria-label="Delete" title="Delete" onClick={()=>handleDeleteScheduled(it.id)}>
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="generator card">
-            <div className="gen-toolbar">
-              <div className="platforms" aria-label="Platform">
-                {(['facebook','instagram','x'] as SocialPlatform[]).map(p => (
-                  <button key={p} className={'platform-btn' + (platform===p?' selected':'')} onClick={()=>setPlatform(p)} aria-label={p}>
-                    {renderPlatformIcon(p, 22)}
-                  </button>
-                ))}
+            {/* Schedule section moved here */}
+            <div className="schedule-section">
+              <div className="schedule-header" onClick={onSheetHeaderClick}>
+                {(() => {
+                  const allScheduled = ideas.filter(i => i.accepted && i.assignedDate)
+                  if (allScheduled.length > 0) {
+                    return (
+                      <button className="share-btn" style={{ marginLeft: 'auto' }} aria-label="Share schedule" title="Share schedule" onClick={(e)=>{ e.stopPropagation(); handleEmailSchedule() }}>
+                        SHARE
+                      </button>
+                    )
+                  }
+                  return null
+                })()}
               </div>
-            </div>
-            <div className="stack">
-              <textarea className="notes-input" rows={2} placeholder="Additional Notes" value={notes} onChange={e=>setNotes(e.target.value)} />
-              <div className="row">
-                <label className="check campaign-check" style={{ justifyContent: 'start' }}>
-                  <input
-                    type="checkbox"
-                    disabled={!canUseCampaign}
-                    checked={canUseCampaign ? campaign : false}
-                    onChange={e=>{ if (canUseCampaign) setCampaign(e.target.checked) }}
-                  />
-                  <span className="campaign-label">Campaign</span>
-                  <span className="continuity muted small">(Continuity)</span>
-                  {!canUseCampaign && (
-                    <button className="inline-upgrade" type="button" onClick={()=>setScreen('subscription')}>
-                      Upgrade
-                    </button>
-                  )}
-                </label>
-                <div className="inline" style={{ justifyContent: 'end' }}>
-                  <button className="icon-btn ghost regen-btn" aria-label="Regenerate all" onClick={()=>setIdeas(prev=>prev.map(i=>({ ...i, ...generateIdea(profile, notes) })))}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
-                  </button>
-                  <button className="primary generate-btn" onClick={handleGenerate}>Generate</button>
-                </div>
+              <div className="schedule-body">
+                {(() => {
+                  // Get all scheduled ideas, grouped by date
+                  const allScheduled = ideas.filter(i => i.accepted && i.assignedDate)
+                  const datesWithScheduled = [...new Set(allScheduled.map(i => i.assignedDate).filter((d): d is string => !!d))].sort()
+                  
+                  if (datesWithScheduled.length === 0) {
+                    return <div className="muted" style={{textAlign: 'center', padding: '20px'}}>No scheduled posts yet</div>
+                  }
+                  
+                  return datesWithScheduled.map((iso) => {
+                    const scheduled = ideas.filter(i => i.accepted && i.assignedDate === iso)
+                    if (scheduled.length === 0) return null
+                  const groups = scheduled.reduce<Record<SocialPlatform, IdeaCard[]>>((acc, it) => {
+                    const key = (it.platform || platform) as SocialPlatform
+                    if (!acc[key]) acc[key] = []
+                    acc[key].push(it)
+                    return acc
+                  }, {} as Record<SocialPlatform, IdeaCard[]>)
+                  
+                  return (
+                    <div key={`schedule-${iso}`} className="scheduled card">
+                      <div className="scheduled-header">
+                        <div className="scheduled-date">{fmtMDYFromISO(iso)}</div>
+                        <div className="scheduled-count muted small">{scheduled.length} scheduled</div>
+                      </div>
+                      <div className="scheduled-groups">
+                        {Object.entries(groups).map(([p, items]) => (
+                          <div key={`${iso}-${p}`} className="scheduled-group">
+                            <div className="group-head" />
+                            <ul className="group-list">
+                              {items.map(it => (
+                                <li key={`${it.id}-${iso}`} className="group-item">
+                                  <div className="item-platform" style={{ fontSize: '14px' }}>
+                                    {renderPlatformIcon(p as SocialPlatform, 14)}
+                                  </div>
+                                  <div className="item-content">
+                                    <div className="item-visual">{it.visual}</div>
+                                    <div className="item-copy">{it.copy}</div>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                  })
+                })()}
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
+      {/* Floating generator island at bottom */}
+      <div className="generator-island">
+        <button className="generator-toggle primary" onClick={handleGenerate} disabled={selectedDates.size === 0}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
+          </svg>
+          Create
+        </button>
+      </div>
+
+      {/* Ideas section */}
+      {visibleIdeas.length > 0 && (
+        <div className="ideas-overlay">
           <div className="ideas card">
-            {ideas.filter(i=>!i.accepted && ((i.assignedDate && selectedDates.has(i.assignedDate)) || (i.proposedDate && selectedDates.has(i.proposedDate)))).length===0 ? <div className="muted">No ideas yet.</div> : (
+            {visibleIdeas.length===0 ? <div className="muted">No ideas yet.</div> : (
               <div className="idea-list">
-                {ideas.filter(i=>!i.accepted && ((i.assignedDate && selectedDates.has(i.assignedDate)) || (i.proposedDate && selectedDates.has(i.proposedDate)))).map((it, idx) => (
+                {visibleIdeas.map((it, idx) => (
                   <div
                     key={it.id}
                     className="idea"
@@ -894,40 +963,110 @@ export default function App() {
                     onPointerCancel={(e)=>onCardPointerUp(it.id, e)}
                     onPointerLeave={(e)=>onCardPointerUp(it.id, e)}
                   >
-                    <div className="idea-platform" aria-label="Platform icon">
-                      {renderPlatformIcon(it.platform || platform, 18)}
-                    </div>
-                    <div className="idea-box"><div className="label">Visual:</div><textarea value={it.visual} onChange={e=>setIdeas(prev=>prev.map(p=>p.id===it.id?{...p, visual:e.target.value}:p))} /></div>
-                    <div className="idea-box"><div className="label">Copy:</div><textarea value={it.copy} onChange={e=>setIdeas(prev=>prev.map(p=>p.id===it.id?{...p, copy:e.target.value}:p))} /></div>
-                    <div className="row">
-                      <button className="date-trigger" type="button" onClick={()=>setOpenCalendarFor(prev => prev===it.id ? null : it.id)}>
-                        {it.assignedDate ? fmtMDYFromISO(it.assignedDate) : (it.proposedDate ? fmtMDYFromISO(it.proposedDate) : 'Assign to date…')}
+                    <div className="idea-header">
+                      <button 
+                        className="close-card-btn" 
+                        aria-label="Close card" 
+                        onClick={()=>setIdeas(prev => prev.filter(i => i.id !== it.id))}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
                       </button>
-                      {openCalendarFor === it.id && (
-                        <div className="mini-cal" role="dialog" aria-label="Select date">
-                          <div className="mini-cal-header">{monthLabel}</div>
-                          <div className="mini-cal-weekdays">
-                            {weekdays.map(w => (
-                              <div key={w} className="mini-weekday">{w}</div>
-                            ))}
-                          </div>
-                          <div className="mini-cal-grid">
-                            {Array.from({ length: firstDayOffset }).map((_, idx) => (
-                              <div key={`mblank-${idx}`} className="mini-cell empty" />
-                            ))}
-                            {monthDays.map(d => (
-                              <button
-                                key={`m-${d.iso}`}
-                                className={'mini-cell' + (it.assignedDate===d.iso ? ' selected' : '')}
-                                onClick={()=>{ handleAssign(it.id, d.iso); setOpenCalendarFor(null) }}
-                              >
-                                {d.day}
-                              </button>
-                            ))}
+                      <div className="idea-right-controls">
+                        <div className="idea-date-time">
+                          <button className="date-trigger" type="button" onClick={()=>setOpenCalendarFor(prev => prev===it.id ? null : it.id)}>
+                            {it.assignedDate ? fmtMDYFromISO(it.assignedDate) : (it.proposedDate ? fmtMDYFromISO(it.proposedDate) : 'Assign to date…')}
+                          </button>
+                          <select className="idea-time-select" defaultValue="12:00">
+                            {Array.from({length:24}).map((_,h)=>{
+                              const value = String(h).padStart(2,'0') + ':00'
+                              const label = new Date(2000,0,1,h).toLocaleTimeString([], { hour: 'numeric' })
+                              return <option key={value} value={value}>{label}</option>
+                            })}
+                          </select>
+                          <div className="idea-platform" aria-label="Platform icon">
+                            {renderPlatformIcon(it.platform || platform, 18)}
                           </div>
                         </div>
-                      )}
-                      <div className="inline actions-right">
+                      </div>
+                    </div>
+                    
+                    {openCalendarFor === it.id && (
+                      <div className="mini-cal" role="dialog" aria-label="Select date">
+                        <div className="mini-cal-header">{monthLabel}</div>
+                        <div className="mini-cal-weekdays">
+                          {weekdays.map(w => (
+                            <div key={w} className="mini-weekday">{w}</div>
+                          ))}
+                        </div>
+                        <div className="mini-cal-grid">
+                          {Array.from({ length: firstDayOffset }).map((_, idx) => (
+                            <div key={`mblank-${idx}`} className="mini-cell empty" />
+                          ))}
+                          {monthDays.map(d => (
+                            <button
+                              key={`m-${d.iso}`}
+                              className={'mini-cell' + (it.assignedDate===d.iso ? ' selected' : '')}
+                              onClick={()=>{ handleAssign(it.id, d.iso); setOpenCalendarFor(null) }}
+                            >
+                              {d.day}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="idea-content">
+                      <div className="idea-box">
+                        {editingCards.has(it.id) ? (
+                          <>
+                            <div className="label">Visual:</div>
+                            <textarea value={it.visual} onChange={e=>setIdeas(prev=>prev.map(p=>p.id===it.id?{...p, visual:e.target.value}:p))} />
+                          </>
+                        ) : (
+                          <div className="inline-text"><span className="label">Visual:</span> {it.visual}</div>
+                        )}
+                      </div>
+                      <div className="idea-box">
+                        {editingCards.has(it.id) ? (
+                          <>
+                            <div className="label">Copy:</div>
+                            <textarea value={it.copy} onChange={e=>setIdeas(prev=>prev.map(p=>p.id===it.id?{...p, copy:e.target.value}:p))} />
+                          </>
+                        ) : (
+                          <div className="inline-text"><span className="label">Copy:</span> {it.copy}</div>
+                        )}
+                      </div>
+                      <div className="idea-box">
+                        <div className="why-inline"><span className="label">Why:</span> {it.why || 'AI-generated recommendation'}</div>
+                      </div>
+                    </div>
+
+                    <div className="idea-actions">
+                      <button 
+                        className="icon-btn ghost edit-save-btn" 
+                        aria-label={editingCards.has(it.id) ? "Save" : "Edit"} 
+                        onClick={()=>{
+                          if (editingCards.has(it.id)) {
+                            setEditingCards(prev => {
+                              const next = new Set(prev)
+                              next.delete(it.id)
+                              return next
+                            })
+                          } else {
+                            setEditingCards(prev => new Set([...prev, it.id]))
+                          }
+                        }}
+                      >
+                        {editingCards.has(it.id) ? (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        ) : (
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        )}
+                      </button>
+                      <div className="actions-right">
                         <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
                         </button>
@@ -942,7 +1081,9 @@ export default function App() {
             )}
           </div>
         </div>
-      </div>
+      )}
+
     </div>
+    </>
   )
 }

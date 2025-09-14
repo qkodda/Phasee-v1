@@ -1,7 +1,7 @@
 :root { font-family: system-ui, Avenir, Helvetica, Arial, sans-serif; line-height: 1.5; font-weight: 400; }
 
 html, body { height: 100%; }
-body { margin: 0; overflow-y: auto; background: #f8fafc; color: #111827; }
+body { margin: 0; overflow-y: auto; overflow-x: hidden; background: #f8fafc; color: #111827; }
 
 /* Prevent layout overflow by including padding/borders in size math */
 *, *::before, *::after { box-sizing: border-box; }
