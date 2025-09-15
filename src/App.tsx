@@ -658,7 +658,7 @@ export default function App() {
       <div className="screen">
         <div className="frame">
           <div className="header-bar"><span />
-            <div className="brand"><img src="/header-logo.png" alt="Header logo" className="brand-logo" /></div>
+            <div className="brand"><img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" /></div>
             <span />
           </div>
           <div className="card">
@@ -816,12 +816,26 @@ export default function App() {
               ))}
             </div>
             <div className="calendar-grid">
-              {Array.from({ length: firstDayOffset }).map((_, idx) => (
-                <div key={`blank-${idx}`} className="cell empty" />
-              ))}
+              {Array.from({ length: firstDayOffset }).map((_, idx) => {
+                const base = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
+                const prevMonth = new Date(base.getFullYear(), base.getMonth() - 1, 1)
+                const prevMonthLast = lastDay(prevMonth)
+                const dayNum = prevMonthLast - firstDayOffset + 1 + idx
+                return (
+                  <button
+                    key={`prev-${idx}`}
+                    className={'cell outside prev'}
+                    disabled
+                    type="button"
+                  >
+                    <span className="day-label">{dayNum}<sup className="ord">{ordinalSuffix(dayNum)}</sup></span>
+                  </button>
+                )
+              })}
               {monthDays.map(d => {
                 const isSelected = selectedDates.has(d.iso)
                 const isToday = d.iso === todayISO
+                const isPast = d.iso < todayISO
                 const icons = ideas.filter(i=>i.accepted && i.assignedDate===d.iso).map(i=>i.platform)
                 const platformCounts = icons.reduce<Record<SocialPlatform, number>>((acc, p) => {
                   const key = p as SocialPlatform
@@ -835,7 +849,8 @@ export default function App() {
                 return (
                   <button
                     key={d.iso}
-                    className={'cell' + (renderSelected ? ' selected' : '') + (!renderSelected && isToday ? ' today' : '')}
+                    className={'cell' + (renderSelected ? ' selected' : '') + (!renderSelected && isToday ? ' today' : '') + (isPast ? ' past' : '')}
+                    disabled={isPast}
                     onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(d.iso)) { next.delete(d.iso) } else { next.add(d.iso) } return next })}
                   ><span className="day-label">{d.day}<sup className="ord">{ordinalSuffix(d.day)}</sup></span>
                     {icons.length>0 && (
@@ -856,6 +871,21 @@ export default function App() {
                   </button>
                 )
               })}
+              {(() => {
+                const totalCells = firstDayOffset + monthDays.length
+                const trailing = (7 - (totalCells % 7)) % 7
+                if (trailing === 0) return null
+                return Array.from({ length: trailing }).map((_, idx) => (
+                  <button
+                    key={`next-${idx}`}
+                    className={'cell outside next'}
+                    disabled
+                    type="button"
+                  >
+                    <span className="day-label">{idx + 1}<sup className="ord">{ordinalSuffix(idx + 1)}</sup></span>
+                  </button>
+                ))
+              })()}
             </div>
             <div className="row" style={{ gridAutoFlow: 'unset', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
               {selectedDates.size > 0 ? (
