@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // Use the repository name for GitHub Pages project site
+  base: '/Phasee-v1/',
   plugins: [react()],
   server: {
     host: '0.0.0.0',
