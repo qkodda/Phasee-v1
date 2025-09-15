@@ -732,10 +732,10 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('profile')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <button className="icon-btn" aria-label="Settings" onClick={()=>setScreen('settings')}>
-              <img src="/settings.svg" alt="Settings" />
+              <img src={`${import.meta.env.BASE_URL}settings.svg`} alt="Settings" />
             </button>
           </div>
           <div className="card">

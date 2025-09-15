@@ -40,7 +40,14 @@ html, body {
 .brand { font-weight: 800; font-size: 28px; margin-bottom: 2px; text-align: center; }
 .brand-logo { display: inline-block; max-width: 91px; width: 100%; height: auto; justify-self: center; }
 
-.header-bar { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; column-gap: 4px; margin-bottom: -8px; margin-top: 2px; width: 100%; }
+.header-bar { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; column-gap: 4px; margin-bottom: -8px; margin-top: 2px; width: 100%; padding: 0 3%; }
+.header-bar .brand { position: relative; top: 5px; }
+
+/* Mobile header fine-tuning */
+@media (max-width: 420px) {
+  .header-bar { padding: 0 2%; column-gap: 3px; }
+  .header-bar .brand { top: 6px; }
+}
 .icon-btn { background: transparent; border-color: transparent; padding: 4px; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; }
 .icon-btn img, .icon-btn svg { width: 18px; height: 18px; display: block; }
 .logo-btn { background: transparent; border: 0; padding: 0; display: grid; place-items: center; }
