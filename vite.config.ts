@@ -6,7 +6,7 @@ export default defineConfig({
   // Use the repository name for GitHub Pages project site
   base: '/Phasee-v1/',
   build: {
-    outDir: 'docs'
+    outDir: 'dist'
   },
   plugins: [react()],
   server: {
