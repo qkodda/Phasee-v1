@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   // Use the repository name for GitHub Pages project site
   base: '/Phasee-v1/',
+  build: {
+    outDir: 'docs'
+  },
   plugins: [react()],
   server: {
     host: '0.0.0.0',

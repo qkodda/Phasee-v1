@@ -414,7 +414,7 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('settings')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <span />
           </div>
@@ -688,7 +688,7 @@ export default function App() {
               <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
             </button>
             <button className="icon-btn" aria-label="Settings" onClick={()=>setScreen('settings')}>
-              <img src="/settings.svg" alt="Settings" />
+              <img src={`${import.meta.env.BASE_URL}settings.svg`} alt="Settings" />
             </button>
           </div>
           <div className="card">
@@ -781,11 +781,11 @@ export default function App() {
       <div className="frame" onClick={(e)=>{ if (sheetHeight > closedHeight + 2) { const el = e.target as HTMLElement; if (!el.closest('.schedule-sheet')) closeSchedule() } }}>
         <div className="header-bar">
           <button className="icon-btn" aria-label="Profile" onClick={()=>setScreen('profile')}>
-            <img src="/profile.svg" alt="Profile" />
+            <img src={`${import.meta.env.BASE_URL}profile.svg`} alt="Profile" />
           </button>
-          <div className="brand"><img src="/header-logo.png" alt="Header logo" className="brand-logo" /></div>
+          <div className="brand"><img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" /></div>
           <button className="icon-btn" aria-label="Settings" onClick={()=>setScreen('settings')}>
-            <img src="/settings.svg" alt="Settings" />
+            <img src={`${import.meta.env.BASE_URL}settings.svg`} alt="Settings" />
           </button>
         </div>
         <div className="home-grid">
@@ -879,7 +879,7 @@ export default function App() {
                   const datesWithScheduled = [...new Set(allScheduled.map(i => i.assignedDate).filter((d): d is string => !!d))].sort()
                   
                   if (datesWithScheduled.length === 0) {
-                    return <div className="muted" style={{textAlign: 'center', padding: '20px'}}>No scheduled posts yet</div>
+                    return <div className="muted" style={{textAlign: 'center', padding: '20px'}}>No scheduled posts.</div>
                   }
                   
                   return datesWithScheduled.map((iso) => {
