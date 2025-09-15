@@ -124,19 +124,9 @@ button.ghost { background: transparent; }
 .card { overflow: visible; }
 .calendar.card { background: #fff; transform: none; overflow: hidden; padding-top: 8px; }
 .month-scroller { display: grid; grid-auto-flow: column; gap: 6px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; position: relative; }
-.month-scroller::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 32px;
-  height: 100%;
-  pointer-events: none;
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, #ffffff 70%);
-}
 .month-scroller::-webkit-scrollbar { display: none; }
 .month-chip { background: #fafafa; border: 1px solid #f1f1f1; color: #374151; padding: 4px 8px; border-radius: 999px; font-size: 11px; }
-.month-chip.selected { background: #111827; border-color: #111827; color: #fff; }
+.month-chip.selected { background: #5b21b6; border-color: #5b21b6; color: #fff; }
 .generator.card { background: #e6eef7; padding: 18px 12px 4px 12px; }
 .generator.card .stack { gap: 4px; margin-bottom: -8px; }
 .generator.card .row:last-child { margin-bottom: -10px; }
@@ -475,7 +465,7 @@ textarea.notes-input {
 .cell { background: #fff; aspect-ratio: 1 / 1; display: grid; align-items: start; justify-items: start; padding: 8px; border-radius: 6px; border: 1px solid #e5e7eb; transform: scale(1.15); will-change: transform; }
 .cell.today { background: #fff; border-color: #5b21b6; box-shadow: 0 0 0 1px #5b21b6 inset; }
 .cell.past { opacity: 0.45; filter: grayscale(0.3); pointer-events: none; }
-.cell.outside { opacity: 0.6; filter: grayscale(0.2); background: #fafafa; border-color: #f1f1f1; cursor: default; }
+.cell.outside { opacity: 0.6; filter: grayscale(0.2); background: #fafafa; border-color: #f1f1f1; }
 .cell.selected { background: #f97316; color: white; font-weight: 700; border-color: #f97316; }
 .day-label { display: inline-flex; align-items: center; gap: 1px; font-size: 0.5em; }
 .ord { font-size: 0.6em; line-height: 1; position: relative; top: 1px; }

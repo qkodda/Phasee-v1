@@ -816,76 +816,138 @@ export default function App() {
               ))}
             </div>
             <div className="calendar-grid">
-              {Array.from({ length: firstDayOffset }).map((_, idx) => {
-                const base = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
-                const prevMonth = new Date(base.getFullYear(), base.getMonth() - 1, 1)
-                const prevMonthLast = lastDay(prevMonth)
-                const dayNum = prevMonthLast - firstDayOffset + 1 + idx
-                return (
-                  <button
-                    key={`prev-${idx}`}
-                    className={'cell outside prev'}
-                    disabled
-                    type="button"
-                  >
-                    <span className="day-label">{dayNum}<sup className="ord">{ordinalSuffix(dayNum)}</sup></span>
-                  </button>
-                )
-              })}
-              {monthDays.map(d => {
-                const isSelected = selectedDates.has(d.iso)
-                const isToday = d.iso === todayISO
-                const isPast = d.iso < todayISO
-                const icons = ideas.filter(i=>i.accepted && i.assignedDate===d.iso).map(i=>i.platform)
-                const platformCounts = icons.reduce<Record<SocialPlatform, number>>((acc, p) => {
-                  const key = p as SocialPlatform
-                  acc[key] = (acc[key] ?? 0) + 1
-                  return acc
-                }, {} as Record<SocialPlatform, number>)
-                const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
-                const isThree = entries.length >= 3
-                const hasScheduled = icons.length > 0
-                 const renderSelected = isSelected
-                return (
-                  <button
-                    key={d.iso}
-                    className={'cell' + (renderSelected ? ' selected' : '') + (!renderSelected && isToday ? ' today' : '') + (isPast ? ' past' : '')}
-                    disabled={isPast}
-                    onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(d.iso)) { next.delete(d.iso) } else { next.add(d.iso) } return next })}
-                  ><span className="day-label">{d.day}<sup className="ord">{ordinalSuffix(d.day)}</sup></span>
-                    {icons.length>0 && (
-                      <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
-                        {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
-                          const posClass = isThree
-                            ? (idx3 === 0 ? ' chip-pos-bl' : idx3 === 1 ? ' chip-pos-br' : ' chip-pos-tr')
-                            : ''
-                          return (
-                            <span key={`${d.iso}-${p}`} className={"chip-icon" + posClass}>
-                              {renderPlatformIcon(p as SocialPlatform, 12)}
-                              {count > 1 ? <sup className="chip-count">{count}</sup> : null}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
-              {(() => {
-                const totalCells = firstDayOffset + monthDays.length
-                const trailing = (7 - (totalCells % 7)) % 7
-                if (trailing === 0) return null
-                return Array.from({ length: trailing }).map((_, idx) => (
-                  <button
-                    key={`next-${idx}`}
-                    className={'cell outside next'}
-                    disabled
-                    type="button"
-                  >
-                    <span className="day-label">{idx + 1}<sup className="ord">{ordinalSuffix(idx + 1)}</sup></span>
-                  </button>
-                ))
-              })()}
+              {viewDate.getFullYear() === today.getFullYear() && viewDate.getMonth() === today.getMonth() ? (
+                // Keep current week at the top: render 6 weeks starting from Sunday's date of current week
+                (() => {
+                  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay())
+                  const firstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
+                  const lastOfMonthDate = lastDay(viewDate)
+                  const lastOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), lastOfMonthDate)
+                  return Array.from({ length: 35 }).map((_, idx) => {
+                    const gd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + idx)
+                    const iso = fmtISO(gd)
+                    const isOutside = gd.getMonth() !== viewDate.getMonth()
+                    const outsideClass = isOutside ? (gd < firstOfMonth ? ' outside prev' : (gd > lastOfMonth ? ' outside next' : ' outside')) : ''
+                    const isSelected = selectedDates.has(iso)
+                    const isToday = iso === todayISO
+                    const isPast = iso < todayISO
+                    const icons = ideas.filter(i=>i.accepted && i.assignedDate===iso).map(i=>i.platform)
+                    const platformCounts = icons.reduce<Record<SocialPlatform, number>>((acc, p) => {
+                      const key = p as SocialPlatform
+                      acc[key] = (acc[key] ?? 0) + 1
+                      return acc
+                    }, {} as Record<SocialPlatform, number>)
+                    const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
+                    const isThree = entries.length >= 3
+                    return (
+                      <button
+                        key={iso}
+                        className={'cell' + outsideClass + (isSelected ? ' selected' : '') + (!isSelected && isToday ? ' today' : '') + (isPast ? ' past' : '')}
+                        disabled={isPast}
+                        onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(iso)) { next.delete(iso) } else { next.add(iso) } return next })}
+                        type="button"
+                      >
+                        <span className="day-label">{gd.getDate()}<sup className="ord">{ordinalSuffix(gd.getDate())}</sup></span>
+                        {icons.length>0 && (
+                          <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
+                            {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
+                              const posClass = isThree
+                                ? (idx3 === 0 ? ' chip-pos-bl' : idx3 === 1 ? ' chip-pos-br' : ' chip-pos-tr')
+                                : ''
+                              return (
+                                <span key={`${iso}-${p}`} className={"chip-icon" + posClass}>
+                                  {renderPlatformIcon(p as SocialPlatform, 12)}
+                                  {count > 1 ? <sup className="chip-count">{count}</sup> : null}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })
+                })()
+              ) : (
+                // Default month view
+                <>
+                  {Array.from({ length: firstDayOffset }).map((_, idx) => {
+                    const base = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
+                    const prevMonth = new Date(base.getFullYear(), base.getMonth() - 1, 1)
+                    const prevMonthLast = lastDay(prevMonth)
+                    const dayNum = prevMonthLast - firstDayOffset + 1 + idx
+                    return (
+                      <button
+                        key={`prev-${idx}`}
+                        className={'cell outside prev'}
+                        disabled
+                        type="button"
+                      >
+                        <span className="day-label">{dayNum}<sup className="ord">{ordinalSuffix(dayNum)}</sup></span>
+                      </button>
+                    )
+                  })}
+                  {monthDays.map(d => {
+                    const isSelected = selectedDates.has(d.iso)
+                    const isToday = d.iso === todayISO
+                    const isPast = d.iso < todayISO
+                    const icons = ideas.filter(i=>i.accepted && i.assignedDate===d.iso).map(i=>i.platform)
+                    const platformCounts = icons.reduce<Record<SocialPlatform, number>>((acc, p) => {
+                      const key = p as SocialPlatform
+                      acc[key] = (acc[key] ?? 0) + 1
+                      return acc
+                    }, {} as Record<SocialPlatform, number>)
+                    const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
+                    const isThree = entries.length >= 3
+                    const renderSelected = isSelected
+                    return (
+                      <button
+                        key={d.iso}
+                        className={'cell' + (renderSelected ? ' selected' : '') + (!renderSelected && isToday ? ' today' : '') + (isPast ? ' past' : '')}
+                        disabled={isPast}
+                        onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(d.iso)) { next.delete(d.iso) } else { next.add(d.iso) } return next })}
+                      ><span className="day-label">{d.day}<sup className="ord">{ordinalSuffix(d.day)}</sup></span>
+                        {icons.length>0 && (
+                          <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
+                            {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
+                              const posClass = isThree
+                                ? (idx3 === 0 ? ' chip-pos-bl' : idx3 === 1 ? ' chip-pos-br' : ' chip-pos-tr')
+                                : ''
+                              return (
+                                <span key={`${d.iso}-${p}`} className={"chip-icon" + posClass}>
+                                  {renderPlatformIcon(p as SocialPlatform, 12)}
+                                  {count > 1 ? <sup className="chip-count">{count}</sup> : null}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                  {(() => {
+                    const totalCells = firstDayOffset + monthDays.length
+                    const trailing = (7 - (totalCells % 7)) % 7
+                    if (trailing === 0) return null
+                    const nextBase = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
+                    return Array.from({ length: trailing }).map((_, idx) => {
+                      const dayNum = idx + 1
+                      const nextDate = new Date(nextBase.getFullYear(), nextBase.getMonth(), dayNum)
+                      const iso = fmtISO(nextDate)
+                      const isSelected = selectedDates.has(iso)
+                      return (
+                        <button
+                          key={`next-${idx}`}
+                          className={'cell outside next' + (isSelected ? ' selected' : '')}
+                          type="button"
+                          onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(iso)) { next.delete(iso) } else { next.add(iso) } return next })}
+                        >
+                          <span className="day-label">{dayNum}<sup className="ord">{ordinalSuffix(dayNum)}</sup></span>
+                        </button>
+                      )
+                    })
+                  })()}
+                </>
+              )}
             </div>
             <div className="row" style={{ gridAutoFlow: 'unset', gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
               {selectedDates.size > 0 ? (
