@@ -28,7 +28,6 @@ function fmtISO(d: Date) { return d.toISOString().slice(0,10) }
 function endOfMonth(date: Date) { return new Date(date.getFullYear(), date.getMonth() + 1, 0) }
 function lastDay(date: Date) { return endOfMonth(date).getDate() }
 
-function planIdeaAllowance(plan: PlanKey) { if (plan==='free3') return 3; return 30 }
 
 function ordinalSuffix(day: number) {
   const j = day % 10
@@ -110,11 +109,6 @@ function generateIdea(profile: BrandProfile, notes: string) {
   }
 }
 
-function getPlatformColor(p: SocialPlatform): string {
-  if (p === 'facebook') return '#1877F2'
-  if (p === 'instagram') return '#E1306C'
-  return '#111111'
-}
 
 export default function App() {
   const today = new Date()
@@ -124,7 +118,6 @@ export default function App() {
   const LS_SELECTED_PLAN = 'phasee.selectedPlan'
   const LS_PLAN_VALUE = 'phasee.plan'
   const hasCompletedProfile = () => localStorage.getItem(LS_COMPLETED_PROFILE) === '1'
-  const hasSelectedPlan = () => localStorage.getItem(LS_SELECTED_PLAN) === '1'
   const [screen, setScreen] = useState<Screen>('login')
   const [activeSettingsItem, setActiveSettingsItem] = useState<string>('personal')
   const [profile, setProfile] = useState<BrandProfile>({ brandName:'', yearFounded:'', industry:'', audience:'', tone:'', hasPhotography:false, hasVideo:false, hasDesign:false, companyDescription:'', brandCulture:'', contentGoals:'' })
@@ -134,7 +127,7 @@ export default function App() {
   const [notes, setNotes] = useState<string>('')
   const [campaign, setCampaign] = useState<boolean>(false)
   const [openCalendarFor, setOpenCalendarFor] = useState<string | null>(null)
-  const [platform, setPlatform] = useState<SocialPlatform>('instagram')
+  const [platform] = useState<SocialPlatform>('instagram')
   const [editingCards, setEditingCards] = useState<Set<string>>(new Set())
   const [showCampaignTooltip, setShowCampaignTooltip] = useState<boolean>(false)
   const dragStartXRef = useRef<Record<string, number>>({})
@@ -166,7 +159,6 @@ export default function App() {
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [showCampaignTooltip])
-  const isSheetOpen = sheetHeight > closedHeight + 2
   const LS_IDEAS = 'phasee.ideas.v1'
 
   // Load persisted ideas on first mount
@@ -190,12 +182,6 @@ export default function App() {
     } catch {}
   }, [ideas])
 
-  const hasScheduledForSelection = useMemo(() => {
-    for (const iso of selectedDates) {
-      if (ideas.some(i => i.accepted && i.assignedDate === iso)) return true
-    }
-    return false
-  }, [selectedDates, ideas])
 
   const monthDays = useMemo(() => {
     const days: { day:number; iso:string }[] = []
@@ -216,9 +202,6 @@ export default function App() {
 
   const weekdays = ['SUN','MON','TUE','WED','THU','FRI','SAT']
   const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(viewDate)
-  const assignedUniqueDates = useMemo(() => new Set(ideas.filter(i=>i.assignedDate).map(i=>i.assignedDate as string)).size, [ideas])
-  const remainingDays = useMemo(() => Math.max(0, planIdeaAllowance(plan) - assignedUniqueDates), [plan, assignedUniqueDates])
-  const canUseCampaign = plan === 'd30'
 
   const visibleIdeas = useMemo(() => ideas.filter(i => !i.accepted), [ideas])
 
@@ -248,45 +231,7 @@ export default function App() {
   }
   function handleRegenerateOne(id: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, ...generateIdea(profile, notes) } : it)) }
   function handleAssign(id: string, iso: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) }
-  function handleDeleteScheduled(id: string) { setIdeas(prev => prev.filter(i => i.id !== id)) }
-  function handleEditScheduled(id: string) {
-    setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: false, proposedDate: it.assignedDate } : it))
-    setOpenCalendarFor(id)
-  }
-  async function handleShareScheduled() {
-    const selectedList = Array.from(selectedDates).sort()
-    const lines: string[] = []
-    for (const iso of selectedList) {
-      const dayItems = ideas.filter(i => i.accepted && i.assignedDate === iso)
-      if (dayItems.length === 0) continue
-      lines.push(`${fmtMDYFromISO(iso)}`)
-      const byPlatform: Record<SocialPlatform, IdeaCard[]> = dayItems.reduce((acc, it) => {
-        const key = (it.platform || platform) as SocialPlatform
-        if (!acc[key]) acc[key] = []
-        acc[key].push(it)
-        return acc
-      }, {} as Record<SocialPlatform, IdeaCard[]>)
-      Object.entries(byPlatform).forEach(([p, arr]) => {
-        arr.forEach((it, idx) => {
-          lines.push(`- [${p}] ${it.visual}${idx < arr.length - 1 ? '' : ''}`)
-        })
-      })
-      lines.push('')
-    }
-    const text = lines.join('\n') || 'No scheduled posts in selection.'
-    try {
-      if (navigator && 'share' in navigator && typeof (navigator as any).share === 'function') {
-        await (navigator as any).share({ title: 'Scheduled Posts', text })
-      } else if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text)
-        alert('Copied schedule to clipboard')
-      }
-    } catch {
-      try { await navigator.clipboard.writeText(text); alert('Copied schedule to clipboard') } catch {}
-    }
-  }
-
-  function handleEmailSchedule() {
+  async function handleEmailSchedule() {
     const selectedList = Array.from(selectedDates).sort()
     const lines: string[] = []
     for (const iso of selectedList) {
@@ -361,7 +306,7 @@ export default function App() {
     setDragXById(prev => ({ ...prev, [id]: dx }))
   }
 
-  function onCardPointerUp(id: string, e: React.PointerEvent<HTMLDivElement>) {
+  function onCardPointerUp(id: string) {
     const dx = dragStartXRef.current[id] === undefined ? 0 : (dragXById[id] || 0)
     delete dragStartXRef.current[id]
     setDragXById(prev => ({ ...prev, [id]: 0 }))
@@ -823,7 +768,7 @@ export default function App() {
                   const firstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
                   const lastOfMonthDate = lastDay(viewDate)
                   const lastOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), lastOfMonthDate)
-                  return Array.from({ length: 35 }).map((_, idx) => {
+                    return Array.from({ length: 35 }).map((_, idx) => {
                     const gd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + idx)
                     const iso = fmtISO(gd)
                     const isOutside = gd.getMonth() !== viewDate.getMonth()
@@ -1002,12 +947,6 @@ export default function App() {
                                   <span className="gi-visual">
                                     {`${it.visual.slice(0, 20)}${it.visual.length>20?'…':''} | ${it.copy.slice(0, 20)}${it.copy.length>20?'…':''}`}
                                   </span>
-                                  <button className="icon-btn text" aria-label="Edit" title="Edit" onClick={()=>handleEditScheduled(it.id)}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                  </button>
-                                  <button className="icon-btn text" aria-label="Delete" title="Delete" onClick={()=>handleDeleteScheduled(it.id)}>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
-                                  </button>
                                 </li>
                               ))}
                             </ul>
@@ -1091,16 +1030,16 @@ export default function App() {
           <div className="ideas card">
             {visibleIdeas.length===0 ? <div className="muted">No ideas yet.</div> : (
               <div className="idea-list">
-                {visibleIdeas.map((it, idx) => (
+                {visibleIdeas.map((it) => (
                   <div
                     key={it.id}
                     className="idea"
                     style={{ transform: `translateX(${dragXById[it.id] || 0}px)`, zIndex: openCalendarFor === it.id ? 999999 : 'auto' }}
                     onPointerDown={(e)=>onCardPointerDown(it.id, e)}
                     onPointerMove={(e)=>onCardPointerMove(it.id, e)}
-                    onPointerUp={(e)=>onCardPointerUp(it.id, e)}
-                    onPointerCancel={(e)=>onCardPointerUp(it.id, e)}
-                    onPointerLeave={(e)=>onCardPointerUp(it.id, e)}
+                    onPointerUp={()=>onCardPointerUp(it.id)}
+                    onPointerCancel={()=>onCardPointerUp(it.id)}
+                    onPointerLeave={()=>onCardPointerUp(it.id)}
                   >
                     <div className="idea-header">
                       <button 
