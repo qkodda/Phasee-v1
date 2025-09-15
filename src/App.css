@@ -461,7 +461,7 @@ textarea.notes-input {
   justify-content: center;
 }
 
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); column-gap: 6px; row-gap: 6px; margin: 8px 0; width: 100%; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); column-gap: 6px; row-gap: 6px; margin: 8px 0; width: 100%; contain: layout; }
 .cell { background: #fff; aspect-ratio: 1 / 1; display: grid; align-items: start; justify-items: start; padding: 8px; border-radius: 6px; border: 1px solid #e5e7eb; transform: scale(1.15); will-change: transform; }
 .cell.today { background: #fff; border-color: #5b21b6; box-shadow: 0 0 0 1px #5b21b6 inset; }
 .cell.past { opacity: 0.45; filter: grayscale(0.3); pointer-events: none; }
@@ -527,6 +527,7 @@ textarea.notes-input {
   overflow: visible; 
   border: 1px solid rgba(226, 232, 240, 0.8);
   position: relative;
+  contain: layout style;
 }
 .idea { 
   box-shadow: 

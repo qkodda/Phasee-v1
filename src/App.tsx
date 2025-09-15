@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react'
 import type { SVGProps } from 'react'
 import './App.css'
 
@@ -51,8 +51,8 @@ function generateId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`
 }
 
-function renderPlatformIcon(p: SocialPlatform, size: number = 20) {
-  const common: SVGProps<SVGSVGElement> = {
+const PlatformIcon = memo(function PlatformIcon({ platform, size = 20 }: { platform: SocialPlatform; size?: number }) {
+  const common: SVGProps<SVGSVGElement> = useMemo(() => ({
     width: size,
     height: size,
     viewBox: '0 0 24 24',
@@ -61,8 +61,9 @@ function renderPlatformIcon(p: SocialPlatform, size: number = 20) {
     strokeWidth: 2,
     strokeLinecap: 'round' as SVGProps<SVGSVGElement>['strokeLinecap'],
     strokeLinejoin: 'round' as SVGProps<SVGSVGElement>['strokeLinejoin'],
-  }
-  switch (p) {
+  }), [size])
+  
+  switch (platform) {
     case 'facebook':
       return (
         <svg {...common}>
@@ -84,9 +85,10 @@ function renderPlatformIcon(p: SocialPlatform, size: number = 20) {
           <path d="M19 5L4 20"/>
         </svg>
       )
-    
+    default:
+      return null
   }
-}
+})
 
 function generateIdea(profile: BrandProfile, notes: string) {
   const seed = Math.random().toString(36).slice(2,6)
@@ -194,6 +196,18 @@ export default function App() {
     return days
   }, [viewDate])
 
+  // Memoize platform counts calculation for better performance
+  const platformCountsByDate = useMemo(() => {
+    const counts: Record<string, Record<SocialPlatform, number>> = {}
+    ideas.filter(i => i.accepted && i.assignedDate).forEach(i => {
+      const date = i.assignedDate!
+      if (!counts[date]) counts[date] = {} as Record<SocialPlatform, number>
+      const platform = i.platform as SocialPlatform
+      counts[date][platform] = (counts[date][platform] || 0) + 1
+    })
+    return counts
+  }, [ideas])
+
   // Sunday-first offset for the first row padding
   const firstDayOffset = useMemo(() => {
     const base = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1)
@@ -205,7 +219,7 @@ export default function App() {
 
   const visibleIdeas = useMemo(() => ideas.filter(i => !i.accepted), [ideas])
 
-  function handleGenerate() {
+  const handleGenerate = useCallback(() => {
     const selectedISOList = Array.from(selectedDates).sort()
     const sourceDates = selectedISOList.length > 0 ? selectedISOList : [todayISO]
     const count = Math.min(10, Math.max(1, sourceDates.length))
@@ -228,9 +242,14 @@ export default function App() {
       setIdeas(prev => [...prev, ...ideasFallback])
       setSelectedDates(new Set())
     })
-  }
-  function handleRegenerateOne(id: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, ...generateIdea(profile, notes) } : it)) }
-  function handleAssign(id: string, iso: string) { setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) }
+  }, [selectedDates, todayISO, profile, notes, platform, ideas])
+  const handleRegenerateOne = useCallback((id: string) => { 
+    setIdeas(prev => prev.map(it => it.id===id ? { ...it, ...generateIdea(profile, notes) } : it)) 
+  }, [profile, notes])
+  
+  const handleAssign = useCallback((id: string, iso: string) => { 
+    setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) 
+  }, [])
   async function handleEmailSchedule() {
     const selectedList = Array.from(selectedDates).sort()
     const lines: string[] = []
@@ -776,13 +795,9 @@ export default function App() {
                     const isSelected = selectedDates.has(iso)
                     const isToday = iso === todayISO
                     const isPast = iso < todayISO
-                    const icons = ideas.filter(i=>i.accepted && i.assignedDate===iso).map(i=>i.platform)
-                    const platformCounts = icons.reduce<Record<SocialPlatform, number>>((acc, p) => {
-                      const key = p as SocialPlatform
-                      acc[key] = (acc[key] ?? 0) + 1
-                      return acc
-                    }, {} as Record<SocialPlatform, number>)
+                    const platformCounts = platformCountsByDate[iso] || {}
                     const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
+                    const icons = entries.reduce((acc, [, count]) => acc + count, 0)
                     const isThree = entries.length >= 3
                     return (
                       <button
@@ -793,7 +808,7 @@ export default function App() {
                         type="button"
                       >
                         <span className="day-label">{gd.getDate()}<sup className="ord">{ordinalSuffix(gd.getDate())}</sup></span>
-                        {icons.length>0 && (
+                        {icons > 0 && (
                           <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
                             {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
                               const posClass = isThree
@@ -801,7 +816,7 @@ export default function App() {
                                 : ''
                               return (
                                 <span key={`${iso}-${p}`} className={"chip-icon" + posClass}>
-                                  {renderPlatformIcon(p as SocialPlatform, 12)}
+                                  <PlatformIcon platform={p as SocialPlatform} size={12} />
                                   {count > 1 ? <sup className="chip-count">{count}</sup> : null}
                                 </span>
                               )
@@ -835,13 +850,9 @@ export default function App() {
                     const isSelected = selectedDates.has(d.iso)
                     const isToday = d.iso === todayISO
                     const isPast = d.iso < todayISO
-                    const icons = ideas.filter(i=>i.accepted && i.assignedDate===d.iso).map(i=>i.platform)
-                    const platformCounts = icons.reduce<Record<SocialPlatform, number>>((acc, p) => {
-                      const key = p as SocialPlatform
-                      acc[key] = (acc[key] ?? 0) + 1
-                      return acc
-                    }, {} as Record<SocialPlatform, number>)
+                    const platformCounts = platformCountsByDate[d.iso] || {}
                     const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
+                    const icons = entries.reduce((acc, [, count]) => acc + count, 0)
                     const isThree = entries.length >= 3
                     const renderSelected = isSelected
                     return (
@@ -851,7 +862,7 @@ export default function App() {
                         disabled={isPast}
                         onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(d.iso)) { next.delete(d.iso) } else { next.add(d.iso) } return next })}
                       ><span className="day-label">{d.day}<sup className="ord">{ordinalSuffix(d.day)}</sup></span>
-                        {icons.length>0 && (
+                        {icons > 0 && (
                           <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
                             {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
                               const posClass = isThree
@@ -859,7 +870,7 @@ export default function App() {
                                 : ''
                               return (
                                 <span key={`${d.iso}-${p}`} className={"chip-icon" + posClass}>
-                                  {renderPlatformIcon(p as SocialPlatform, 12)}
+                                  <PlatformIcon platform={p as SocialPlatform} size={12} />
                                   {count > 1 ? <sup className="chip-count">{count}</sup> : null}
                                 </span>
                               )
@@ -943,7 +954,7 @@ export default function App() {
                               {items.map(it => (
                                 <li key={`${it.id}-${iso}`} className="group-item" data-platform={p}>
                                   <span className="gi-time">12:00</span>
-                                  <span className="gi-icon">{renderPlatformIcon(p as SocialPlatform, 14)}</span>
+                                  <span className="gi-icon"><PlatformIcon platform={p as SocialPlatform} size={14} /></span>
                                   <span className="gi-visual">
                                     {`${it.visual.slice(0, 20)}${it.visual.length>20?'…':''} | ${it.copy.slice(0, 20)}${it.copy.length>20?'…':''}`}
                                   </span>
@@ -1065,7 +1076,7 @@ export default function App() {
                             })}
                           </select>
                           <div className="idea-platform" aria-label="Platform icon">
-                            {renderPlatformIcon(it.platform || platform, 18)}
+                            <PlatformIcon platform={it.platform || platform} size={18} />
                           </div>
                         </div>
                       </div>
