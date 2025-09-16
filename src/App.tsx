@@ -145,34 +145,21 @@ export default function App() {
 
   // Click outside handler to close open cards
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleGlobalPointer(event: Event) {
       const target = event.target as HTMLElement
       
-      // Debug logging
-      console.log('Click detected on:', target, target.className)
+      // Only prevent closing for very specific interactive elements
+      const isButton = target.tagName === 'BUTTON' || target.closest('button')
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT'
+      const isMiniCal = target.closest('.mini-cal')
+      const isScheduledEdit = target.closest('.scheduled-edit-card')
       
-      // Simple approach: close everything unless clicking on very specific elements
-      const shouldKeepOpen = (
-        target.closest('button') ||
-        target.closest('input') ||
-        target.closest('textarea') ||
-        target.closest('select') ||
-        target.closest('.mini-cal') ||
-        target.closest('.scheduled-edit-card') ||
-        // Only keep open if clicking on the actual open calendar or editing area
-        (target.closest('.idea') && target.closest('.mini-cal')) ||
-        (target.closest('.idea') && target.closest('textarea'))
-      )
-      
-      console.log('Should keep open:', shouldKeepOpen)
-      
-      if (shouldKeepOpen) {
+      // Don't close if clicking on interactive elements
+      if (isButton || isInput || isMiniCal || isScheduledEdit) {
         return
       }
       
-      // Close any open states
-      console.log('Closing cards - openCalendarFor:', openCalendarFor, 'editingCards:', editingCards.size, 'editingScheduledItem:', editingScheduledItem)
-      
+      // Close any open states when clicking anywhere else
       if (openCalendarFor !== null) {
         setOpenCalendarFor(null)
       }
@@ -184,9 +171,14 @@ export default function App() {
       }
     }
 
-    document.addEventListener('click', handleClickOutside, true) // Use capture phase
+    // Use capture phase to ensure we see the event before stops
+    document.addEventListener('pointerdown', handleGlobalPointer, true)
+    document.addEventListener('touchstart', handleGlobalPointer, true)
+    document.addEventListener('mousedown', handleGlobalPointer, true)
     return () => {
-      document.removeEventListener('click', handleClickOutside, true)
+      document.removeEventListener('pointerdown', handleGlobalPointer, true)
+      document.removeEventListener('touchstart', handleGlobalPointer, true)
+      document.removeEventListener('mousedown', handleGlobalPointer, true)
     }
   }, [openCalendarFor, editingCards, editingScheduledItem])
   // Drag disabled for bottom sheet; tap to open/close only
