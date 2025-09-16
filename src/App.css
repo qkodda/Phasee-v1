@@ -773,6 +773,14 @@ textarea.notes-input {
   font-size: 16px;
   font-weight: 600;
 }
+
+.optimize-btn {
+  color: #8b5cf6 !important;
+}
+.optimize-btn:hover {
+  background: #f3f4f6;
+  color: #7c3aed !important;
+}
 .divider { height: 1px; background: #eee; margin: 10px 0; }
 .settings-list { display: grid; gap: 10px; padding: 4px 0; }
 .settings-item { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: transparent; border: 0; text-align: left; cursor: pointer; }

@@ -47,10 +47,28 @@ app.post('/api/generate', async (req, res) => {
     if (!apiKey) return res.status(500).json({ error: 'Missing OPENAI_API_KEY' })
     const client = new OpenAI({ apiKey })
 
-    const prompt = `Generate ${count} short social post ideas as JSON array with fields visual and copy.
-Profile: ${JSON.stringify(profile)}
-Notes: ${notes || 'none'}
-Return only JSON.`
+    const prompt = `You are a social media content strategist. Generate ${count} engaging social media post ideas based on the brand profile.
+
+BRAND PROFILE:
+${JSON.stringify(profile, null, 2)}
+
+ADDITIONAL NOTES: ${notes || 'No specific notes provided'}
+
+REQUIREMENTS:
+- Create content that matches the brand's tone and industry
+- Consider the target audience: ${profile?.audience || 'general audience'}
+- Align with content goals: ${profile?.contentGoals || 'brand awareness'}
+- Include visual suggestions that match available capabilities: ${[profile?.hasPhotography && 'photography', profile?.hasVideo && 'video', profile?.hasDesign && 'design'].filter(Boolean).join(', ') || 'basic visuals'}
+
+Return a JSON array with objects containing:
+- "visual": Detailed visual description/concept
+- "copy": Engaging post text (keep under 280 characters)
+- "why": Brief explanation of why this content works for the brand
+
+Example format:
+[{"visual": "Behind-the-scenes photo of...", "copy": "Your engaging post text here", "why": "Builds authenticity and trust"}]
+
+Return ONLY the JSON array, no other text.`
 
     const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -60,6 +78,50 @@ Return only JSON.`
     const text = completion.choices?.[0]?.message?.content || '[]'
     const ideas = JSON.parse(text)
     res.json({ ideas })
+  } catch (err) {
+    res.status(500).json({ error: String(err.message || err) })
+  }
+})
+
+// AI content optimization endpoint
+app.post('/api/optimize', async (req, res) => {
+  try {
+    const { visual, copy, platform, profile } = req.body || {}
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) return res.status(500).json({ error: 'Missing OPENAI_API_KEY' })
+    const client = new OpenAI({ apiKey })
+
+    const prompt = `You are a social media optimization expert. Improve this content for ${platform || 'social media'}:
+
+CURRENT CONTENT:
+Visual: ${visual}
+Copy: ${copy}
+
+BRAND CONTEXT:
+${JSON.stringify(profile, null, 2)}
+
+OPTIMIZATION GOALS:
+- Increase engagement and reach
+- Match platform best practices for ${platform || 'social media'}
+- Maintain brand voice and tone
+- Optimize for target audience
+
+Return a JSON object with:
+- "visual": Enhanced visual concept
+- "copy": Optimized post text
+- "hashtags": Array of relevant hashtags (5-10)
+- "improvements": Brief explanation of changes made
+
+Return ONLY the JSON object, no other text.`
+
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+    })
+    const text = completion.choices?.[0]?.message?.content || '{}'
+    const result = JSON.parse(text)
+    res.json(result)
   } catch (err) {
     res.status(500).json({ error: String(err.message || err) })
   }

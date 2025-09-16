@@ -256,6 +256,38 @@ export default function App() {
   const handleAssign = useCallback((id: string, iso: string) => { 
     setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) 
   }, [])
+
+  const handleOptimize = useCallback(async (id: string) => {
+    const idea = ideas.find(it => it.id === id)
+    if (!idea) return
+    
+    try {
+      const response = await fetch('/api/optimize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visual: idea.visual,
+          copy: idea.copy,
+          platform: idea.platform,
+          profile
+        })
+      })
+      const result = await response.json()
+      
+      if (result.visual && result.copy) {
+        setIdeas(prev => prev.map(it => 
+          it.id === id ? {
+            ...it,
+            visual: result.visual,
+            copy: result.copy,
+            why: result.improvements || it.why
+          } : it
+        ))
+      }
+    } catch (err) {
+      console.error('Optimization failed:', err)
+    }
+  }, [ideas, profile])
   async function handleEmailSchedule() {
     const selectedList = Array.from(selectedDates).sort()
     const lines: string[] = []
@@ -1401,6 +1433,19 @@ export default function App() {
                         ) : (
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                         )}
+                      </button>
+                      
+                      <button 
+                        className="icon-btn ghost optimize-btn" 
+                        aria-label="AI Optimize" 
+                        onClick={() => handleOptimize(it.id)}
+                        title="Optimize with AI"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                          <path d="M2 17l10 5 10-5"/>
+                          <path d="M2 12l10 5 10-5"/>
+                        </svg>
                       </button>
                       <div className="actions-right">
                         <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
