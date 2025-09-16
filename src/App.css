@@ -177,14 +177,14 @@ button.ghost { background: transparent; }
 .generator.card { min-height: 180px; }
 .ideas.card { min-height: 300px; }
 .frame > .calendar.card, .frame > .generator.card, .frame > .ideas.card { margin-left: 0; margin-right: 0; }
-.scheduled.card { background: #fff; padding: 6px 8px; }
+.scheduled.card { background: #fff; padding: 4px 8px; margin-bottom: 2px; }
 
 /* Scheduled item wrapper with time outside */
 .scheduled-item-wrapper {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .scheduled-time {
@@ -464,7 +464,7 @@ button.ghost { background: transparent; }
   border-color: #6d28d9;
 }
 .scheduled-toolbar { display: grid; justify-content: end; margin-top: -6px; margin-bottom: 0; }
-.scheduled-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; margin-bottom: 2px; }
+.scheduled-header { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px; margin-bottom: 1px; }
 .scheduled-date { font-weight: 800; font-size: 10px; }
 .scheduled-count { font-size: 9px; }
 .scheduled-groups { display: grid; gap: 1px; }
