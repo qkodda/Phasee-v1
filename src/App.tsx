@@ -784,6 +784,7 @@ export default function App() {
               <span className="settings-icon" aria-hidden="true">👤</span>
               <span className="settings-title">Profile</span>
             </div>
+            <div className="profile-subtitle">Tell us about your brand and goals! The more material, the better the build!</div>
             <div className="stack">
               <div className="section">Brand Profile</div>
               <input placeholder="Brand Name" value={profile.brandName} onChange={e=>setProfile({ ...profile, brandName:e.target.value })} />
@@ -802,10 +803,7 @@ export default function App() {
               <label className="check"><input type="checkbox" checked={profile.hasVideo} onChange={e=>setProfile({ ...profile, hasVideo:e.target.checked })} /> Video</label>
               <label className="check"><input type="checkbox" checked={profile.hasDesign} onChange={e=>setProfile({ ...profile, hasDesign:e.target.checked })} /> Design</label>
 
-              <div className="row split">
-                <button className="ghost" onClick={() => setScreen('home')}>Cancel</button>
-                <button className="primary" onClick={() => { localStorage.setItem(LS_COMPLETED_PROFILE, '1'); setScreen('subscription') }}>Save</button>
-              </div>
+              <button className="primary update-btn" onClick={() => { localStorage.setItem(LS_COMPLETED_PROFILE, '1'); setScreen('home') }}>Update</button>
             </div>
           </div>
         </div>

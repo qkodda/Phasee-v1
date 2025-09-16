@@ -756,6 +756,22 @@ textarea.notes-input {
 .settings-header { display: grid; grid-auto-flow: column; align-items: center; gap: 10px; padding: 6px 4px 10px; }
 .settings-title { font-size: 22px; font-weight: 800; }
 .settings-icon { font-size: 18px; color: #6b7280; }
+
+.profile-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-bottom: 24px;
+  padding: 0 4px;
+}
+
+.update-btn {
+  margin-top: 32px !important;
+  width: 100%;
+  padding: 14px 24px;
+  font-size: 16px;
+  font-weight: 600;
+}
 .divider { height: 1px; background: #eee; margin: 10px 0; }
 .settings-list { display: grid; gap: 10px; padding: 4px 0; }
 .settings-item { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; background: transparent; border: 0; text-align: left; cursor: pointer; }
