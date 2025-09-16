@@ -1,4 +1,5 @@
 /* Minimal Express server with SQLite and OpenAI generate endpoint */
+import 'dotenv/config'
 import express from 'express'
 import path from 'path'
 import sqlite3 from 'sqlite3'
