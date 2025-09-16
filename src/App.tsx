@@ -231,7 +231,7 @@ export default function App() {
     const count = Math.min(10, Math.max(1, sourceDates.length))
     fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile, notes, count })
+      body: JSON.stringify({ profile, notes, count, campaign: campaign && selectedDates.size > 1, sourceDates })
     }).then(r=>r.json()).then(data => {
       const fromApi: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas)? data.ideas : []
       const ideasToAdd: IdeaCard[] = (fromApi.length? fromApi : Array.from({length: count}, ()=> generateIdea(profile, notes))).map((g, idx) => {
@@ -249,45 +249,28 @@ export default function App() {
       setSelectedDates(new Set())
     })
   }, [selectedDates, todayISO, profile, notes, platform, ideas])
-  const handleRegenerateOne = useCallback((id: string) => { 
-    setIdeas(prev => prev.map(it => it.id===id ? { ...it, ...generateIdea(profile, notes) } : it)) 
-  }, [profile, notes])
+  const handleRegenerateOne = useCallback(async (id: string) => { 
+    const idea = ideas.find(it => it.id === id)
+    const iso = idea?.proposedDate || todayISO
+    try {
+      const resp = await fetch('/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso] })
+      })
+      const data = await resp.json()
+      const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes)
+      setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation' } : it))
+    } catch {
+      const g = generateIdea(profile, notes)
+      setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why } : it))
+    }
+  }, [ideas, profile, notes, campaign, selectedDates, todayISO])
   
   const handleAssign = useCallback((id: string, iso: string) => { 
     setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) 
   }, [])
 
-  const handleOptimize = useCallback(async (id: string) => {
-    const idea = ideas.find(it => it.id === id)
-    if (!idea) return
-    
-    try {
-      const response = await fetch('/api/optimize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          visual: idea.visual,
-          copy: idea.copy,
-          platform: idea.platform,
-          profile
-        })
-      })
-      const result = await response.json()
-      
-      if (result.visual && result.copy) {
-        setIdeas(prev => prev.map(it => 
-          it.id === id ? {
-            ...it,
-            visual: result.visual,
-            copy: result.copy,
-            why: result.improvements || it.why
-          } : it
-        ))
-      }
-    } catch (err) {
-      console.error('Optimization failed:', err)
-    }
-  }, [ideas, profile])
+  // optimize temporarily disabled
   async function handleEmailSchedule() {
     const selectedList = Array.from(selectedDates).sort()
     const lines: string[] = []
@@ -1435,18 +1418,7 @@ export default function App() {
                         )}
                       </button>
                       
-                      <button 
-                        className="icon-btn ghost optimize-btn" 
-                        aria-label="AI Optimize" 
-                        onClick={() => handleOptimize(it.id)}
-                        title="Optimize with AI"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                          <path d="M2 17l10 5 10-5"/>
-                          <path d="M2 12l10 5 10-5"/>
-                        </svg>
-                      </button>
+                      {/* Optimize button temporarily removed as requested */}
                       <div className="actions-right">
                         <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>

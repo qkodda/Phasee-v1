@@ -43,7 +43,7 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/generate', async (req, res) => {
   try {
-    const { profile, notes, count = 3 } = req.body || {}
+    const { profile, notes, count = 3, campaign = false, sourceDates = [] } = req.body || {}
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) return res.status(500).json({ error: 'Missing OPENAI_API_KEY' })
     const client = new OpenAI({ apiKey })
@@ -60,6 +60,7 @@ REQUIREMENTS:
 - Consider the target audience: ${profile?.audience || 'general audience'}
 - Align with content goals: ${profile?.contentGoals || 'brand awareness'}
 - Include visual suggestions that match available capabilities: ${[profile?.hasPhotography && 'photography', profile?.hasVideo && 'video', profile?.hasDesign && 'design'].filter(Boolean).join(', ') || 'basic visuals'}
+${campaign ? `- Treat these posts as one cohesive campaign across the following dates: ${Array.isArray(sourceDates)&&sourceDates.length? sourceDates.join(', ') : 'multiple selected dates'}. Ensure a narrative or thematic link between posts. Avoid repeating the same concept; vary angles while keeping a unifying theme.` : ''}
 
 Return a JSON array with objects containing:
 - "visual": Detailed visual description/concept
