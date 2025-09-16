@@ -132,15 +132,11 @@ export default function App() {
   const [platform] = useState<SocialPlatform>('instagram')
   const [editingCards, setEditingCards] = useState<Set<string>>(new Set())
   const [showCampaignTooltip, setShowCampaignTooltip] = useState<boolean>(false)
-  const [activeDragCard, setActiveDragCard] = useState<string | null>(null)
-  const [dragStartX, setDragStartX] = useState<number>(0)
-  const [dragCurrentX, setDragCurrentX] = useState<number>(0)
-  const [dragRawX, setDragRawX] = useState<number>(0)
-  const [explodingCards, setExplodingCards] = useState<Set<string>>(new Set())
+  // Swipe disabled: remove drag states
+  const [explodingCards] = useState<Set<string>>(new Set())
   const [isGenerating, setIsGenerating] = useState<boolean>(false)
-  const [createBoom, setCreateBoom] = useState<boolean>(false)
-  const velocityRef = useRef<{ x: number; time: number }[]>([])
-  const activePointerIdRef = useRef<number | null>(null)
+  const [generatingText, setGeneratingText] = useState<string>('Brainstorming!')
+  // Swipe disabled: remove refs
   const [editingScheduledItem, setEditingScheduledItem] = useState<string | null>(null)
   const [closedHeight, setClosedHeight] = useState<number>(56)
   const [sheetHeight, setSheetHeight] = useState<number>(56)
@@ -271,12 +267,26 @@ export default function App() {
   const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(viewDate)
 
   const visibleIdeas = useMemo(() => ideas.filter(i => !i.accepted), [ideas])
+  // Toggle body class to control background scroll when overlay is shown
+  useEffect(() => {
+    if (visibleIdeas.length > 0) {
+      document.body.classList.add('ideas-open')
+    } else {
+      document.body.classList.remove('ideas-open')
+    }
+    return () => { document.body.classList.remove('ideas-open') }
+  }, [visibleIdeas.length])
 
   const handleGenerate = useCallback(() => {
-    // Trigger fun burst and set generating state
-    setCreateBoom(true)
-    setTimeout(() => setCreateBoom(false), 600)
+    // Set generating state and text progression
     setIsGenerating(true)
+    setGeneratingText('Brainstorming!')
+    
+    // Change text after 2 seconds
+    setTimeout(() => {
+      setGeneratingText('Building ideas!')
+    }, 2000)
+    
     const startTime = Date.now()
     const selectedISOList = Array.from(selectedDates).sort()
     const sourceDates = selectedISOList.length > 0 ? selectedISOList : [todayISO]
@@ -295,9 +305,12 @@ export default function App() {
       })
       setIdeas(prev => [...prev, ...ideasToAdd])
       setSelectedDates(new Set())
-      // Ensure the "Brainstorming!" moment is seen for at least ~800ms
-      const remaining = Math.max(0, 800 - (Date.now() - startTime))
-      setTimeout(() => setIsGenerating(false), remaining)
+      // Ensure the generating moment is seen for at least ~4000ms
+      const remaining = Math.max(0, 4000 - (Date.now() - startTime))
+      setTimeout(() => {
+        setIsGenerating(false)
+        setGeneratingText('Brainstorming!')
+      }, remaining)
     }).catch(() => {
       const ideasFallback: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
         const g = generateIdea(profile, notes)
@@ -305,8 +318,11 @@ export default function App() {
       })
       setIdeas(prev => [...prev, ...ideasFallback])
       setSelectedDates(new Set())
-      const remaining = Math.max(0, 800 - (Date.now() - startTime))
-      setTimeout(() => setIsGenerating(false), remaining)
+      const remaining = Math.max(0, 4000 - (Date.now() - startTime))
+      setTimeout(() => {
+        setIsGenerating(false)
+        setGeneratingText('Brainstorming!')
+      }, remaining)
     })
   }, [selectedDates, todayISO, profile, notes, platform, ideas, campaign])
   const handleRegenerateOne = useCallback(async (id: string) => { 
@@ -385,162 +401,11 @@ export default function App() {
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 
-  const FLICK_VELOCITY_THRESHOLD = 0.05 // pixels per ms (very sensitive)
-  const MIN_FLICK_DISTANCE = 5 // minimum distance for flick (5 pixels)
-  const MAX_DRAG = 100
-  const DEADZONE = 3 // reduced deadzone for better sensitivity
+  // Swipe disabled
 
-  function onCardPointerDown(id: string, e: React.PointerEvent<HTMLDivElement>) {
-    const t = e.target as HTMLElement
-    if (t.closest('button, [role="button"], .date-trigger, select, textarea, input')) return
-    
-    // Strict isolation: only allow if no other card is active AND no other pointer is active
-    if (activeDragCard !== null || activePointerIdRef.current !== null) {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
-    
-    // Additional mobile-specific check: ensure this is a primary pointer
-    if (!e.isPrimary) {
-      e.preventDefault()
-      e.stopPropagation()
-      return
-    }
-    
-    // Capture this specific pointer
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch (err) {}
-    
-    const now = performance.now()
-    activePointerIdRef.current = e.pointerId
-    setActiveDragCard(id)
-    setDragStartX(e.clientX)
-    setDragCurrentX(0)
-    setDragRawX(0)
-    velocityRef.current = [{ x: e.clientX, time: now }]
-    
-    e.preventDefault()
-    e.stopPropagation()
-  }
+  // Swipe handlers disabled
 
-  const onCardPointerMove = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
-    // Triple check: must be primary pointer, correct card, and correct pointer ID
-    if (!e.isPrimary || 
-        activeDragCard !== id || 
-        activePointerIdRef.current !== e.pointerId) {
-      return
-    }
-    
-    const now = performance.now()
-    const raw = e.clientX - dragStartX
-    const abs = Math.abs(raw)
-    
-    // Track velocity for flick detection
-    velocityRef.current.push({ x: e.clientX, time: now })
-    if (velocityRef.current.length > 5) {
-      velocityRef.current = velocityRef.current.slice(-3) // Keep only last 3 points
-    }
-    
-    // Always track the raw movement for swipe detection
-    setDragRawX(raw)
-    
-    // Apply deadzone only to visual feedback
-    if (abs < DEADZONE) return
-    
-    const clamped = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, raw))
-    const eased = clamped * 0.6
-    
-    // Update visual position
-    setDragCurrentX(eased)
-  }, [activeDragCard, dragStartX])
-
-  const onCardPointerUp = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
-    // Only respond if this is the active card AND the correct pointer
-    if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
-    
-    // const now = performance.now()
-    const dx = dragRawX // Use raw value for accurate detection
-    const totalDistance = Math.abs(dx)
-    
-    // Calculate velocity from recent movements
-    let velocity = 0
-    if (velocityRef.current.length >= 2) {
-      const recent = velocityRef.current.slice(-3) // Last 3 points
-      const first = recent[0]
-      const last = recent[recent.length - 1]
-      const timeDiff = last.time - first.time
-      const distDiff = last.x - first.x
-      velocity = timeDiff > 0 ? Math.abs(distDiff) / timeDiff : 0
-    }
-    
-    // Release pointer capture
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch (err) {}
-    
-    // Clean up all state
-    activePointerIdRef.current = null
-    setActiveDragCard(null)
-    setDragCurrentX(0)
-    setDragRawX(0)
-    setDragStartX(0)
-    velocityRef.current = []
-    
-    // Detect flick gesture - either by velocity OR by simple distance
-    const isFlick = velocity > FLICK_VELOCITY_THRESHOLD || totalDistance > MIN_FLICK_DISTANCE
-    const isSimpleSwipe = Math.abs(dx) >= MIN_FLICK_DISTANCE // Simple 5+ pixel swipe
-    
-    // Debug logging
-    console.log('Swipe Debug:', { dx, totalDistance, velocity, isFlick, isSimpleSwipe, MIN_FLICK_DISTANCE, FLICK_VELOCITY_THRESHOLD })
-    
-    if ((isFlick || isSimpleSwipe) && Math.abs(dx) > 3) {
-      if (dx > 0) {
-        // Right flick: Explode and schedule
-        setExplodingCards(prev => new Set(prev).add(id))
-        
-        // Schedule the card immediately
-        const selectedISOList = Array.from(selectedDates).sort()
-        const pool = selectedISOList.length === 0 ? [todayISO] : selectedISOList
-        const used = new Set(ideas.filter(i=>i.id!==id && i.assignedDate).map(i=>i.assignedDate as string))
-        const chosen = pool.find(iso => !used.has(iso)) || pool[0]
-        
-        // Remove from visible ideas immediately
-        setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: chosen, accepted: true, platform } : it))
-        
-        // Clean up exploding animation
-        setTimeout(() => {
-          setExplodingCards(prev => {
-            const next = new Set(prev)
-            next.delete(id)
-            return next
-          })
-        }, 300)
-        
-      } else {
-        // Left flick: Regenerate content
-        handleRegenerateOne(id)
-      }
-    }
-    // If not a flick, card automatically returns to center
-  }, [activeDragCard, dragRawX, selectedDates, todayISO, platform, ideas, handleRegenerateOne])
-
-  const onCardPointerCancel = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
-    // Only respond if this is the active card AND the correct pointer
-    if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
-    
-    // Release pointer capture
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch (err) {}
-    
-    activePointerIdRef.current = null
-    setActiveDragCard(null)
-    setDragCurrentX(0)
-    setDragRawX(0)
-    velocityRef.current = []
-  }, [activeDragCard])
+  // no-op
 
   // Bottom sheet interactions
   function openScheduleHalf() {
@@ -1296,12 +1161,12 @@ export default function App() {
       {/* Floating Create Button - bottom of screen when no dates selected */}
       {(selectedDates.size === 0 && visibleIdeas.length === 0) && (
         <div className="generator-floating">
-          <button className={"generator-toggle" + (isGenerating ? " generating" : "") + (createBoom ? " boom" : "")} onClick={handleGenerate} disabled={isGenerating}>
+          <button className={"generator-toggle" + (isGenerating ? " generating" : "")} onClick={handleGenerate} disabled={isGenerating}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
               <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
             </svg>
-            {isGenerating ? 'Brainstorming!' : 'Create'}
+            {isGenerating ? generatingText : 'Create'}
           </button>
         </div>
       )}
@@ -1340,12 +1205,12 @@ export default function App() {
               onChange={e => setNotes(e.target.value)}
             />
             <div className="generator-actions">
-              <button className={"generator-toggle" + (isGenerating ? " generating" : "") + (createBoom ? " boom" : "")} onClick={handleGenerate} style={{ flex: 1 }} disabled={isGenerating}>
+              <button className={"generator-toggle" + (isGenerating ? " generating" : "")} onClick={handleGenerate} style={{ flex: 1 }} disabled={isGenerating}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3"/>
                   <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
                 </svg>
-                {isGenerating ? 'Brainstorming!' : 'Create'}
+                {isGenerating ? generatingText : 'Create'}
               </button>
             </div>
           </div>
@@ -1354,7 +1219,7 @@ export default function App() {
 
       {/* Ideas section */}
       {visibleIdeas.length > 0 && (
-        <div className="ideas-overlay" onClick={(e)=>{ if (e.currentTarget === e.target) { setIdeas([]) } }}>
+        <div className={"ideas-overlay" + (visibleIdeas.length === 1 ? " single" : "")} onClick={(e)=>{ if (e.currentTarget === e.target) { setIdeas([]) } }}>
           <div className="ideas card">
             {visibleIdeas.length===0 ? <div className="muted">No ideas yet.</div> : (
               <div className="idea-list">
@@ -1362,17 +1227,8 @@ export default function App() {
                   <div
                     key={it.id}
                     data-card-id={it.id}
-                    className={`idea${activeDragCard === it.id ? ' dragging' : ''}${explodingCards.has(it.id) ? ' exploding' : ''}`}
-                    style={{ 
-                      transform: `translateX(${activeDragCard === it.id && activePointerIdRef.current !== null ? dragCurrentX : 0}px)`, 
-                      zIndex: activeDragCard === it.id ? 1000 : (openCalendarFor === it.id ? 999999 : 'auto'),
-                      pointerEvents: activeDragCard !== null && activeDragCard !== it.id ? 'none' : 'auto'
-                    }}
-                    onPointerDown={(e)=>onCardPointerDown(it.id, e)}
-                    onPointerMove={(e)=>onCardPointerMove(it.id, e)}
-                    onPointerUp={(e)=>onCardPointerUp(it.id, e)}
-                    onPointerCancel={(e)=>onCardPointerCancel(it.id, e)}
-                    onPointerLeave={(e)=>onCardPointerCancel(it.id, e)}
+                    className={`idea${explodingCards.has(it.id) ? ' exploding' : ''}`}
+                    style={{ zIndex: openCalendarFor === it.id ? 999999 : 'auto' }}
                   >
                     <div className="idea-header">
                       <button 
