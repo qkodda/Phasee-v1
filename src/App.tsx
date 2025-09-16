@@ -135,6 +135,7 @@ export default function App() {
   const [activeDragCard, setActiveDragCard] = useState<string | null>(null)
   const [dragStartX, setDragStartX] = useState<number>(0)
   const [dragCurrentX, setDragCurrentX] = useState<number>(0)
+  const [dragRawX, setDragRawX] = useState<number>(0)
   const [explodingCards, setExplodingCards] = useState<Set<string>>(new Set())
   const velocityRef = useRef<{ x: number; time: number }[]>([])
   const activePointerIdRef = useRef<number | null>(null)
@@ -342,6 +343,7 @@ export default function App() {
     setActiveDragCard(id)
     setDragStartX(e.clientX)
     setDragCurrentX(0)
+    setDragRawX(0)
     velocityRef.current = [{ x: e.clientX, time: now }]
     
     e.preventDefault()
@@ -366,12 +368,16 @@ export default function App() {
       velocityRef.current = velocityRef.current.slice(-3) // Keep only last 3 points
     }
     
-    // Deadzone to prevent micro-movements
+    // Always track the raw movement for swipe detection
+    setDragRawX(raw)
+    
+    // Apply deadzone only to visual feedback
     if (abs < DEADZONE) return
     
     const clamped = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, raw))
     const eased = clamped * 0.6
     
+    // Update visual position
     setDragCurrentX(eased)
   }, [activeDragCard, dragStartX])
 
@@ -380,7 +386,7 @@ export default function App() {
     if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
     
     // const now = performance.now()
-    const dx = dragCurrentX
+    const dx = dragRawX // Use raw value for accurate detection
     const totalDistance = Math.abs(dx)
     
     // Calculate velocity from recent movements
@@ -403,12 +409,16 @@ export default function App() {
     activePointerIdRef.current = null
     setActiveDragCard(null)
     setDragCurrentX(0)
+    setDragRawX(0)
     setDragStartX(0)
     velocityRef.current = []
     
     // Detect flick gesture - either by velocity OR by simple distance
     const isFlick = velocity > FLICK_VELOCITY_THRESHOLD || totalDistance > MIN_FLICK_DISTANCE
     const isSimpleSwipe = Math.abs(dx) >= MIN_FLICK_DISTANCE // Simple 5+ pixel swipe
+    
+    // Debug logging
+    console.log('Swipe Debug:', { dx, totalDistance, velocity, isFlick, isSimpleSwipe, MIN_FLICK_DISTANCE, FLICK_VELOCITY_THRESHOLD })
     
     if ((isFlick || isSimpleSwipe) && Math.abs(dx) > 3) {
       if (dx > 0) {
@@ -439,7 +449,7 @@ export default function App() {
       }
     }
     // If not a flick, card automatically returns to center
-  }, [activeDragCard, dragCurrentX, selectedDates, todayISO, platform, ideas, handleRegenerateOne])
+  }, [activeDragCard, dragRawX, selectedDates, todayISO, platform, ideas, handleRegenerateOne])
 
   const onCardPointerCancel = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
     // Only respond if this is the active card AND the correct pointer
@@ -453,6 +463,7 @@ export default function App() {
     activePointerIdRef.current = null
     setActiveDragCard(null)
     setDragCurrentX(0)
+    setDragRawX(0)
     velocityRef.current = []
   }, [activeDragCard])
 
