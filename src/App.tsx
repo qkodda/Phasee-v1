@@ -148,9 +148,30 @@ export default function App() {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement
       
-      // Don't close if clicking on buttons, inputs, or interactive elements
-      if (target.closest('button, input, textarea, select, .mini-cal, .scheduled-edit-card, .idea')) {
+      // Check if clicking on specific interactive elements that should NOT close cards
+      const isInteractiveElement = target.closest('button, input, textarea, select')
+      const isMiniCalendar = target.closest('.mini-cal')
+      const isScheduledEditCard = target.closest('.scheduled-edit-card')
+      
+      // Don't close if clicking on interactive elements, mini calendar, or scheduled edit card
+      if (isInteractiveElement || isMiniCalendar || isScheduledEditCard) {
         return
+      }
+      
+      // For idea cards, only prevent closing if clicking on the CURRENTLY OPEN card's interactive parts
+      const clickedIdeaCard = target.closest('.idea')
+      if (clickedIdeaCard) {
+        const cardId = clickedIdeaCard.getAttribute('data-card-id')
+        
+        // Don't close if clicking on the currently open calendar's card
+        if (openCalendarFor === cardId) {
+          return
+        }
+        
+        // Don't close if clicking on a currently editing card
+        if (cardId && editingCards.has(cardId)) {
+          return
+        }
       }
       
       // Close any open states
