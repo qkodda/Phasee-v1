@@ -132,8 +132,13 @@ export default function App() {
   const [platform] = useState<SocialPlatform>('instagram')
   const [editingCards, setEditingCards] = useState<Set<string>>(new Set())
   const [showCampaignTooltip, setShowCampaignTooltip] = useState<boolean>(false)
-  const dragStartXRef = useRef<Record<string, number>>({})
-  const [dragXById, setDragXById] = useState<Record<string, number>>({})
+  const [activeDragCard, setActiveDragCard] = useState<string | null>(null)
+  const [dragStartX, setDragStartX] = useState<number>(0)
+  const [dragCurrentX, setDragCurrentX] = useState<number>(0)
+  const [explodingCards, setExplodingCards] = useState<Set<string>>(new Set())
+  const velocityRef = useRef<{ x: number; time: number }[]>([])
+  const activePointerIdRef = useRef<number | null>(null)
+  const [editingScheduledItem, setEditingScheduledItem] = useState<string | null>(null)
   const [closedHeight, setClosedHeight] = useState<number>(56)
   const [sheetHeight, setSheetHeight] = useState<number>(56)
   // Drag disabled for bottom sheet; tap to open/close only
@@ -304,42 +309,132 @@ export default function App() {
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 
-  const SWIPE_THRESHOLD = 120
-  const DEADZONE = 12
-  const MAX_DRAG = 140
+  const FLICK_VELOCITY_THRESHOLD = 0.2 // pixels per ms (very sensitive)
+  const MIN_FLICK_DISTANCE = 15 // minimum distance for flick
+  const MAX_DRAG = 100
+  const DEADZONE = 8
 
   function onCardPointerDown(id: string, e: React.PointerEvent<HTMLDivElement>) {
     const t = e.target as HTMLElement
     if (t.closest('button, [role="button"], .date-trigger, select, textarea, input')) return
-    dragStartXRef.current[id] = e.clientX
-  }
-
-  function onCardPointerMove(id: string, e: React.PointerEvent<HTMLDivElement>) {
-    if (!e.isPrimary) return
-    const startX = dragStartXRef.current[id]
-    if (startX === undefined) return
-    const raw = e.clientX - startX
-    const abs = Math.abs(raw)
-    const clamped = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, raw))
-    const dx = abs < DEADZONE ? 0 : clamped
-    setDragXById(prev => ({ ...prev, [id]: dx }))
-  }
-
-  function onCardPointerUp(id: string) {
-    const dx = dragStartXRef.current[id] === undefined ? 0 : (dragXById[id] || 0)
-    delete dragStartXRef.current[id]
-    setDragXById(prev => ({ ...prev, [id]: 0 }))
-    if (dx > SWIPE_THRESHOLD) {
-      // Accept/schedule to the next available selected date
-      const selectedISOList = Array.from(selectedDates).sort()
-      const pool = selectedISOList.length === 0 ? [todayISO] : selectedISOList
-      const used = new Set(ideas.filter(i=>i.id!==id && i.assignedDate).map(i=>i.assignedDate as string))
-      const chosen = pool.find(iso => !used.has(iso)) || pool[0]
-      setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: chosen, accepted: true, platform } : it))
-    } else if (dx < -SWIPE_THRESHOLD) {
-      handleRegenerateOne(id)
+    
+    // Strict isolation: only allow if no other card is active AND no other pointer is active
+    if (activeDragCard !== null || activePointerIdRef.current !== null) {
+      return
     }
+    
+    // Capture this specific pointer
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch (err) {}
+    
+    const now = performance.now()
+    activePointerIdRef.current = e.pointerId
+    setActiveDragCard(id)
+    setDragStartX(e.clientX)
+    setDragCurrentX(0)
+    velocityRef.current = [{ x: e.clientX, time: now }]
+    
+    e.preventDefault()
+    e.stopPropagation()
   }
+
+  const onCardPointerMove = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
+    // Triple check: must be primary pointer, correct card, and correct pointer ID
+    if (!e.isPrimary || 
+        activeDragCard !== id || 
+        activePointerIdRef.current !== e.pointerId) {
+      return
+    }
+    
+    const now = performance.now()
+    const raw = e.clientX - dragStartX
+    const abs = Math.abs(raw)
+    
+    // Track velocity for flick detection
+    velocityRef.current.push({ x: e.clientX, time: now })
+    if (velocityRef.current.length > 5) {
+      velocityRef.current = velocityRef.current.slice(-3) // Keep only last 3 points
+    }
+    
+    // Deadzone to prevent micro-movements
+    if (abs < DEADZONE) return
+    
+    const clamped = Math.max(-MAX_DRAG, Math.min(MAX_DRAG, raw))
+    const eased = clamped * 0.6
+    
+    setDragCurrentX(eased)
+  }, [activeDragCard, dragStartX])
+
+  const onCardPointerUp = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
+    // Only respond if this is the active card AND the correct pointer
+    if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
+    
+    const now = performance.now()
+    const dx = dragCurrentX
+    const totalDistance = Math.abs(dx)
+    
+    // Calculate velocity from recent movements
+    let velocity = 0
+    if (velocityRef.current.length >= 2) {
+      const recent = velocityRef.current.slice(-3) // Last 3 points
+      const first = recent[0]
+      const last = recent[recent.length - 1]
+      const timeDiff = last.time - first.time
+      const distDiff = last.x - first.x
+      velocity = timeDiff > 0 ? Math.abs(distDiff) / timeDiff : 0
+    }
+    
+    // Clean up all state
+    activePointerIdRef.current = null
+    setActiveDragCard(null)
+    setDragCurrentX(0)
+    setDragStartX(0)
+    velocityRef.current = []
+    
+    // Detect flick gesture
+    const isFlick = velocity > FLICK_VELOCITY_THRESHOLD || totalDistance > MIN_FLICK_DISTANCE
+    
+    if (isFlick && Math.abs(dx) > 5) {
+      if (dx > 0) {
+        // Right flick: Explode and schedule
+        setExplodingCards(prev => new Set(prev).add(id))
+        
+        // Schedule the card immediately
+        const selectedISOList = Array.from(selectedDates).sort()
+        const pool = selectedISOList.length === 0 ? [todayISO] : selectedISOList
+        const used = new Set(ideas.filter(i=>i.id!==id && i.assignedDate).map(i=>i.assignedDate as string))
+        const chosen = pool.find(iso => !used.has(iso)) || pool[0]
+        
+        // Remove from visible ideas immediately
+        setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: chosen, accepted: true, platform } : it))
+        
+        // Clean up exploding animation
+        setTimeout(() => {
+          setExplodingCards(prev => {
+            const next = new Set(prev)
+            next.delete(id)
+            return next
+          })
+        }, 300)
+        
+      } else {
+        // Left flick: Regenerate content
+        handleRegenerateOne(id)
+      }
+    }
+    // If not a flick, card automatically returns to center
+  }, [activeDragCard, dragCurrentX, selectedDates, todayISO, platform, ideas, handleRegenerateOne])
+
+  const onCardPointerCancel = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
+    // Only respond if this is the active card AND the correct pointer
+    if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
+    
+    activePointerIdRef.current = null
+    setActiveDragCard(null)
+    setDragCurrentX(0)
+    velocityRef.current = []
+  }, [activeDragCard])
 
   // Bottom sheet interactions
   function openScheduleHalf() {
@@ -365,8 +460,7 @@ export default function App() {
   }
 
   function handleLogin() {
-    if (!hasCompletedProfile()) { setScreen('profile'); return }
-    // Do not auto-open subscription anymore; go straight to Home
+    // Always go to home screen for login - returning users should see homepage
     setScreen('home')
   }
 
@@ -619,14 +713,13 @@ export default function App() {
 
   if (screen === 'login') {
     return (
-      <div className="screen">
+      <div className="screen login-screen">
         <div className="frame">
-          <div className="header-bar"><span />
-            <div className="brand"><img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" /></div>
-            <span />
+          <div className="login-logo">
+            <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
           </div>
-          <div className="card">
-            <h2 className="title">Login</h2>
+          <div className="login-card">
+            <h2 className="title">Start Building!</h2>
             <div className="stack">
               <input placeholder="Email" />
               <input placeholder="Password" type="password" />
@@ -952,13 +1045,72 @@ export default function App() {
                             <div className="group-head" />
                             <ul className="group-list">
                               {items.map(it => (
-                                <li key={`${it.id}-${iso}`} className="group-item" data-platform={p}>
-                                  <span className="gi-time">12:00</span>
-                                  <span className="gi-icon"><PlatformIcon platform={p as SocialPlatform} size={14} /></span>
-                                  <span className="gi-visual">
-                                    {`${it.visual.slice(0, 20)}${it.visual.length>20?'…':''} | ${it.copy.slice(0, 20)}${it.copy.length>20?'…':''}`}
-                                  </span>
-                                </li>
+                                <div key={`${it.id}-${iso}`} className="scheduled-item-wrapper">
+                                  <span className="scheduled-time">12:00</span>
+                                  {editingScheduledItem === it.id ? (
+                                    // Expanded edit mode
+                                    <div className="scheduled-item-expanded">
+                                      <div className="idea-header">
+                                        <button 
+                                          className="icon-btn ghost edit-save-btn" 
+                                          aria-label="Save changes"
+                                          onClick={() => setEditingScheduledItem(null)}
+                                        >
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                          </svg>
+                                        </button>
+                                        <div className="idea-platform-wrap">
+                                          <PlatformIcon platform={p as SocialPlatform} size={20} />
+                                        </div>
+                                      </div>
+                                      <div className="idea-box">
+                                        <textarea 
+                                          className="idea-text" 
+                                          defaultValue={it.visual}
+                                          placeholder="Visual description..."
+                                        />
+                                        <textarea 
+                                          className="idea-text" 
+                                          defaultValue={it.copy}
+                                          placeholder="Copy text..."
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    // Collapsed view
+                                    <li className="group-item" data-platform={p}>
+                                      <span className="gi-icon"><PlatformIcon platform={p as SocialPlatform} size={14} /></span>
+                                      <span className="gi-visual">
+                                        {`${it.visual.slice(0, 20)}${it.visual.length>20?'…':''} | ${it.copy.slice(0, 20)}${it.copy.length>20?'…':''}`}
+                                      </span>
+                                      <div className="gi-actions">
+                                        <button 
+                                          className="icon-btn ghost edit-btn" 
+                                          aria-label="Edit"
+                                          onClick={() => setEditingScheduledItem(it.id)}
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                          </svg>
+                                        </button>
+                                        <button 
+                                          className="icon-btn ghost trash-btn" 
+                                          aria-label="Delete"
+                                          onClick={() => setIdeas(prev => prev.filter(i => i.id !== it.id))}
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="3 6 5 6 21 6"/>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                            <line x1="10" y1="11" x2="10" y2="17"/>
+                                            <line x1="14" y1="11" x2="14" y2="17"/>
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    </li>
+                                  )}
+                                </div>
                               ))}
                             </ul>
                           </div>
@@ -977,7 +1129,7 @@ export default function App() {
 
 
       {/* Floating Create Button - bottom of screen when no dates selected */}
-      {selectedDates.size === 0 && (
+      {(selectedDates.size === 0 && visibleIdeas.length === 0) && (
         <div className="generator-floating">
           <button className="generator-toggle" onClick={handleGenerate} disabled={selectedDates.size === 0}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1037,20 +1189,24 @@ export default function App() {
 
       {/* Ideas section */}
       {visibleIdeas.length > 0 && (
-        <div className="ideas-overlay">
+        <div className="ideas-overlay" onClick={(e)=>{ if (e.currentTarget === e.target) { setIdeas([]) } }}>
           <div className="ideas card">
             {visibleIdeas.length===0 ? <div className="muted">No ideas yet.</div> : (
               <div className="idea-list">
                 {visibleIdeas.map((it) => (
                   <div
                     key={it.id}
-                    className="idea"
-                    style={{ transform: `translateX(${dragXById[it.id] || 0}px)`, zIndex: openCalendarFor === it.id ? 999999 : 'auto' }}
+                    data-card-id={it.id}
+                    className={`idea${activeDragCard === it.id ? ' dragging' : ''}${explodingCards.has(it.id) ? ' exploding' : ''}`}
+                    style={{ 
+                      transform: `translateX(${activeDragCard === it.id ? dragCurrentX : 0}px)`, 
+                      zIndex: activeDragCard === it.id ? 1000 : (openCalendarFor === it.id ? 999999 : 'auto')
+                    }}
                     onPointerDown={(e)=>onCardPointerDown(it.id, e)}
                     onPointerMove={(e)=>onCardPointerMove(it.id, e)}
-                    onPointerUp={()=>onCardPointerUp(it.id)}
-                    onPointerCancel={()=>onCardPointerUp(it.id)}
-                    onPointerLeave={()=>onCardPointerUp(it.id)}
+                    onPointerUp={(e)=>onCardPointerUp(it.id, e)}
+                    onPointerCancel={(e)=>onCardPointerCancel(it.id, e)}
+                    onPointerLeave={(e)=>onCardPointerCancel(it.id, e)}
                   >
                     <div className="idea-header">
                       <button 
@@ -1075,10 +1231,10 @@ export default function App() {
                               return <option key={value} value={value}>{label}</option>
                             })}
                           </select>
-                          <div className="idea-platform" aria-label="Platform icon">
-                            <PlatformIcon platform={it.platform || platform} size={18} />
-                          </div>
                         </div>
+                      </div>
+                      <div className="idea-platform-wrap" aria-label="Platform icon">
+                        <PlatformIcon platform={it.platform || platform} size={18} />
                       </div>
                     </div>
                     

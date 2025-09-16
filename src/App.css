@@ -40,8 +40,8 @@ html, body {
 .brand { font-weight: 800; font-size: 28px; margin-bottom: 2px; text-align: center; }
 .brand-logo { display: inline-block; max-width: 91px; width: 100%; height: auto; justify-self: center; }
 
-.header-bar { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; column-gap: 4px; margin-bottom: -8px; margin-top: 2px; width: 100%; padding: 0 3%; }
-.header-bar .brand { position: relative; top: 5px; }
+.header-bar { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; column-gap: 4px; margin-bottom: -8px; margin-top: -1px; width: 100%; padding: 0 3%; }
+.header-bar .brand { position: relative; top: 2px; }
 
 /* Mobile header fine-tuning */
 @media (max-width: 420px) {
@@ -56,6 +56,40 @@ html, body {
 .icon-btn { background: transparent; border: 0; font-size: 18px; padding: 6px; cursor: pointer; }
 
 .card { width: 100%; background: #fff; border-radius: 12px; padding: 18px 12px; }
+
+/* Login screen specific styling */
+.login-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.login-screen .frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 390px;
+}
+
+.login-logo {
+  position: absolute;
+  top: 17vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.login-card {
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px 12px;
+  margin-top: 23vh;
+}
 .title { text-align: center; margin: 4px 0 6px; }
 .title.small { font-size: 16px; }
 .muted { color: var(--muted); text-align: center; font-size: 12px; margin-bottom: 6px; }
@@ -145,10 +179,137 @@ button.ghost { background: transparent; }
 .frame > .calendar.card, .frame > .generator.card, .frame > .ideas.card { margin-left: 0; margin-right: 0; }
 .scheduled.card { background: #fff; padding: 8px 10px; }
 
+/* Scheduled item wrapper with time outside */
+.scheduled-item-wrapper {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.scheduled-time {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  min-width: 35px;
+  text-align: right;
+  margin-top: 2px;
+}
+
 /* Platform color coding for individual scheduled items */
-.group-item[data-platform="facebook"] { background: transparent; border-left: 3px solid #1877F2; padding-left: 8px; }
-.group-item[data-platform="instagram"] { background: transparent; border-left: 3px solid #E1306C; padding-left: 8px; }
-.group-item[data-platform="x"] { background: transparent; border-left: 3px solid #111111; padding-left: 8px; }
+.group-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: transparent;
+  position: relative;
+}
+
+.group-item[data-platform="facebook"] { border-left: 3px solid #1877F2; }
+.group-item[data-platform="instagram"] { border-left: 3px solid #E1306C; }
+.group-item[data-platform="x"] { border-left: 3px solid #111111; }
+
+.gi-icon {
+  flex-shrink: 0;
+}
+
+.gi-visual {
+  flex: 1;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.gi-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.group-item:hover .gi-actions {
+  opacity: 1;
+}
+
+.edit-btn, .trash-btn {
+  padding: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.edit-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.trash-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Expanded edit mode for scheduled items */
+.scheduled-item-expanded {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  animation: expandIn 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+@keyframes expandIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+    max-height: 40px;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    max-height: 200px;
+  }
+}
+
+.scheduled-item-expanded .idea-header {
+  display: grid;
+  grid-template-columns: 24px 1fr 24px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.scheduled-item-expanded .idea-box {
+  display: grid;
+  gap: 8px;
+}
+
+.scheduled-item-expanded .idea-text {
+  min-height: 35px;
+  padding: 6px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.edit-save-btn {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
+.edit-save-btn:hover {
+  background: rgba(34, 197, 94, 0.2);
+}
 .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.08); backdrop-filter: blur(0px); z-index: 9998; }
 .schedule-sheet { 
   position: fixed !important; 
@@ -454,7 +615,7 @@ textarea.notes-input {
   box-sizing: border-box;
 }
 .ideas.card { 
-  background: #fff; 
+  background: transparent; 
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -510,7 +671,7 @@ textarea.notes-input {
 
 .idea-list { 
   display: grid; 
-  gap: 20px;
+  gap: 12px;
   justify-items: center;
   width: 100%;
   max-width: 100%;
@@ -522,8 +683,8 @@ textarea.notes-input {
 }
 .idea { 
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); 
-  border-radius: 16px; 
-  padding: 20px; 
+  border-radius: 12px; 
+  padding: 14px; 
   overflow: visible; 
   border: 1px solid rgba(226, 232, 240, 0.8);
   position: relative;
@@ -531,26 +692,149 @@ textarea.notes-input {
 }
 .idea { 
   box-shadow: 
-    0 4px 12px rgba(0,0,0,0.05), 
-    0 2px 4px rgba(0,0,0,0.08),
+    0 8px 25px rgba(0,0,0,0.12), 
+    0 4px 10px rgba(0,0,0,0.15),
     0 0 0 1px rgba(255,255,255,0.05) inset; 
 }
 .idea { 
-  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1); 
-  touch-action: pan-y; 
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 180ms cubic-bezier(0.4, 0, 0.2, 1); 
+  touch-action: pan-x; 
   will-change: transform; 
   animation: fadeIn 400ms ease-out;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  /* Optimize for hardware acceleration */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  /* Mobile touch optimizations */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Improve mobile performance */
+  contain: layout style paint;
 }
+/* Disable transitions during active dragging */
+.idea.dragging {
+  transition: none !important;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 1000;
+}
+
 /* Reduce motion on hover to minimize layout fidgets */
 .idea:hover { 
   transform: none; 
   box-shadow: 
-    0 6px 18px rgba(0,0,0,0.06), 
-    0 3px 6px rgba(0,0,0,0.10),
+    0 12px 30px rgba(0,0,0,0.15), 
+    0 6px 12px rgba(0,0,0,0.18),
     0 0 0 1px rgba(255,255,255,0.08) inset; 
+}
+
+/* Swipe visual feedback */
+.idea[style*="translateX"] {
+  z-index: 100;
+}
+
+/* Add subtle background hints for swipe directions */
+.idea::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Right swipe (accept) - green hint */
+.idea[style*="translateX(1"]:before,
+.idea[style*="translateX(2"]:before,
+.idea[style*="translateX(3"]:before,
+.idea[style*="translateX(4"]:before,
+.idea[style*="translateX(5"]:before,
+.idea[style*="translateX(6"]:before,
+.idea[style*="translateX(7"]:before,
+.idea[style*="translateX(8"]:before,
+.idea[style*="translateX(9"]:before {
+  background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.1));
+  opacity: 1;
+}
+
+/* Left swipe (regenerate) - orange hint */
+.idea[style*="translateX(-"]:before {
+  background: linear-gradient(270deg, transparent, rgba(249, 115, 22, 0.1));
+  opacity: 1;
+}
+
+/* Exploding animation for accepted cards */
+@keyframes explode {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2) rotate(5deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(0.8) rotate(-3deg);
+    opacity: 0;
+  }
+}
+
+.idea.exploding {
+  animation: explode 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  pointer-events: none;
+}
+
+/* Prevent multiple card selection during drag */
+.ideas-overlay .idea-list {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* Mobile touch optimizations */
+  -webkit-overflow-scrolling: touch;
+  /* Prevent momentum scrolling interference */
+  overscroll-behavior: contain;
+}
+
+/* Simple card isolation */
+.idea.dragging {
+  z-index: 1000;
+}
+
+/* Mobile-specific touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .idea {
+    /* Increase touch target size on mobile */
+    min-height: 100px;
+    /* Optimize for touch performance */
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    /* Reduce transition duration for snappier feel */
+    transition-duration: 0.2s;
+  }
+  
+  .idea.dragging {
+    /* Enhanced mobile dragging performance */
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+    /* Force hardware acceleration */
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+  }
+  
+  /* Reduce animation complexity on mobile */
+  .idea.exploding {
+    animation-duration: 0.3s;
+  }
 }
 .idea-header { 
   display: grid; 
@@ -558,7 +842,7 @@ textarea.notes-input {
   justify-content: center; 
   align-items: center; 
   gap: 10px; 
-  margin-bottom: 12px; 
+  margin-bottom: 8px; 
 }
 .close-card-btn {
   background: transparent;
@@ -570,8 +854,8 @@ textarea.notes-input {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
 }
 .close-card-btn:hover {
   color: #dc2626;
@@ -592,8 +876,8 @@ textarea.notes-input {
   padding: 8px 12px;
   background: #ffffff;
   cursor: pointer;
-  min-width: 110px;
-  height: 40px;
+  min-width: 96px;
+  height: 32px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   transition: all 160ms ease;
 }
@@ -610,14 +894,14 @@ textarea.notes-input {
 }
 .idea-box { 
   display: grid; 
-  gap: 8px; 
-  margin-bottom: 16px; 
+  gap: 6px; 
+  margin-bottom: 10px; 
 }
 .idea-text {
-  font-size: 14px;
+  font-size: 13px;
   color: #374151;
   line-height: 1.4;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
@@ -628,7 +912,7 @@ textarea.notes-input {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid #f1f5f9;
 }
 .actions-right {
@@ -636,7 +920,7 @@ textarea.notes-input {
   gap: 6px;
 }
 .inline-text {
-  font-size: 13px;
+  font-size: 12.5px;
   color: #374151;
   line-height: 1.5;
   padding: 4px 0;
@@ -665,10 +949,10 @@ textarea.notes-input {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 .why-inline { 
-  font-size: 13px; 
+  font-size: 12px; 
   color: #64748b; 
   font-style: italic; 
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: rgba(241, 245, 249, 0.5);
   border-radius: 8px;
   border-left: 3px solid #e2e8f0;
@@ -680,15 +964,15 @@ textarea.notes-input {
   position: relative; 
   background: #ffffff; 
   border: 1px solid #e2e8f0; 
-  padding: 8px 12px; 
+  padding: 6px 10px; 
   border-radius: 8px; 
   font-size: 13px; 
   font-weight: 500;
   color: #475569;
   transition: all 160ms ease;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  min-width: 110px;
-  height: 40px;
+  min-width: 96px;
+  height: 32px;
   display: flex;
   align-items: center;
 }
@@ -723,7 +1007,11 @@ textarea.notes-input {
   z-index: 1001;
 }
 
-.generator-floating {
+.generator-floating { display: none; }
+
+/* Only show when no ideas overlay is present */
+body:not(.ideas-open) .generator-floating { 
+  display: flex; 
   position: fixed;
   bottom: 24px;
   left: 50%;
@@ -732,7 +1020,6 @@ textarea.notes-input {
   padding: 0 16px;
   width: min(390px, calc(100vw - 40px));
   max-width: 390px;
-  display: flex;
   justify-content: center;
 }
 
@@ -1005,17 +1292,65 @@ textarea.notes-input {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: transparent;
   z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow: visible;
 }
 
-.ideas-overlay .ideas.card {
-  max-width: 390px;
-  width: 100%;
-  max-height: 80vh;
-  overflow-y: auto;
+/* Compact idea cards ~20% smaller, balanced spacing */
+.ideas-overlay { padding: 0; overflow: visible; }
+.ideas-overlay .ideas.card { background: transparent; box-shadow: none; border: 0; padding: 0; width: 100vw; max-width: none; position: relative; left: 50%; transform: translateX(-50%); }
+.ideas-overlay .idea-list { max-height: calc(100vh - 140px); overflow-y: auto; overflow-x: visible; padding: 8px 60px 36px; margin: 0; width: 100%; box-sizing: border-box; }
+.idea { width: 306px; max-width: 306px; margin: 0 auto; position: relative; }
+
+/* Allow idea cards to extend beyond their container when swiping */
+.ideas-overlay .idea {
+  margin: 0 auto 12px;
+  position: relative;
+  /* Ensure shadows and swipe effects are visible */
+  overflow: visible;
+  /* Remove width constraints that might clip shadows */
+  width: 306px;
+  max-width: 306px;
 }
+.idea { padding: 7px; border-radius: 10px; }
+.idea-header { margin-bottom: 5px; }
+.idea-box { margin-bottom: 5px; }
+.idea-text { min-height: 35px; }
+.idea-time-select { height: 23px; padding: 2px 7px; }
+.date-trigger { height: 23px; padding: 3px 7px; }
+.idea-platform { width: 24px; height: 24px; }
+.regen-btn, .accept-btn, .edit-save-btn { min-width: 25px; min-height: 25px; }
+.close-card-btn { width: 20px; height: 20px; }
+.why-inline { padding: 5px 7px; }
+
+/* Center X and platform icon */
+.idea-header { display: grid; grid-template-columns: 24px 1fr 24px; align-items: center; gap: 8px; }
+.close-card-btn { justify-self: center; align-self: center; display: grid; place-items: center; }
+.idea-right-controls { justify-self: center; }
+.idea-platform-wrap { justify-self: center; display: grid; place-items: center; }
+
+/* Balance spacing in date/time row */
+.idea-date-time { display: grid; grid-auto-flow: column; gap: 6px; align-items: center; }
+.idea-date-time > * { margin-right: 6px; }
+.idea-date-time > *:last-child { margin-right: 0; }
+.idea-time-select { height: 26px; min-width: 80px; font-size: 11.5px; padding: 3px 8px; }
+.date-trigger { height: 26px; min-width: 80px; padding: 4px 8px; font-size: 11.5px; }
+.idea-platform { width: 28px; height: 28px; }
+
+/* Compact action buttons */
+.regen-btn, .accept-btn, .edit-save-btn { 
+  padding: 5px; 
+  min-width: 28px; 
+  min-height: 28px; 
+  border-radius: 8px;
+}
+.regen-btn svg, .accept-btn svg, .edit-save-btn svg { width: 12px; height: 12px; }
+.close-card-btn { width: 22px; height: 22px; }
+
+/* Slim why box */
+.why-inline { padding: 6px 8px; font-size: 11.5px; border-left-width: 2px; }
