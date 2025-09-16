@@ -21,3 +21,5 @@ OPENAI_API_KEY=sk-...
 ## Notes
 - API: Express + SQLite at `server/index.js`
 - Generation endpoint: POST `/api/generate` { profile, notes, count }
+
+<!-- deploy trigger: 2025-09-16T03:33:00Z -->
