@@ -148,33 +148,31 @@ export default function App() {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement
       
-      // Check if clicking on specific interactive elements that should NOT close cards
-      const isInteractiveElement = target.closest('button, input, textarea, select')
-      const isMiniCalendar = target.closest('.mini-cal')
-      const isScheduledEditCard = target.closest('.scheduled-edit-card')
+      // Debug logging
+      console.log('Click detected on:', target, target.className)
       
-      // Don't close if clicking on interactive elements, mini calendar, or scheduled edit card
-      if (isInteractiveElement || isMiniCalendar || isScheduledEditCard) {
+      // Simple approach: close everything unless clicking on very specific elements
+      const shouldKeepOpen = (
+        target.closest('button') ||
+        target.closest('input') ||
+        target.closest('textarea') ||
+        target.closest('select') ||
+        target.closest('.mini-cal') ||
+        target.closest('.scheduled-edit-card') ||
+        // Only keep open if clicking on the actual open calendar or editing area
+        (target.closest('.idea') && target.closest('.mini-cal')) ||
+        (target.closest('.idea') && target.closest('textarea'))
+      )
+      
+      console.log('Should keep open:', shouldKeepOpen)
+      
+      if (shouldKeepOpen) {
         return
       }
       
-      // For idea cards, only prevent closing if clicking on the CURRENTLY OPEN card's interactive parts
-      const clickedIdeaCard = target.closest('.idea')
-      if (clickedIdeaCard) {
-        const cardId = clickedIdeaCard.getAttribute('data-card-id')
-        
-        // Don't close if clicking on the currently open calendar's card
-        if (openCalendarFor === cardId) {
-          return
-        }
-        
-        // Don't close if clicking on a currently editing card
-        if (cardId && editingCards.has(cardId)) {
-          return
-        }
-      }
-      
       // Close any open states
+      console.log('Closing cards - openCalendarFor:', openCalendarFor, 'editingCards:', editingCards.size, 'editingScheduledItem:', editingScheduledItem)
+      
       if (openCalendarFor !== null) {
         setOpenCalendarFor(null)
       }
@@ -186,9 +184,9 @@ export default function App() {
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('click', handleClickOutside, true) // Use capture phase
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('click', handleClickOutside, true)
     }
   }, [openCalendarFor, editingCards, editingScheduledItem])
   // Drag disabled for bottom sheet; tap to open/close only
