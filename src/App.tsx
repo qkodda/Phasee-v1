@@ -309,10 +309,10 @@ export default function App() {
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 
-  const FLICK_VELOCITY_THRESHOLD = 0.2 // pixels per ms (very sensitive)
-  const MIN_FLICK_DISTANCE = 15 // minimum distance for flick
+  const FLICK_VELOCITY_THRESHOLD = 0.05 // pixels per ms (very sensitive)
+  const MIN_FLICK_DISTANCE = 5 // minimum distance for flick (5 pixels)
   const MAX_DRAG = 100
-  const DEADZONE = 8
+  const DEADZONE = 3 // reduced deadzone for better sensitivity
 
   function onCardPointerDown(id: string, e: React.PointerEvent<HTMLDivElement>) {
     const t = e.target as HTMLElement
@@ -406,10 +406,11 @@ export default function App() {
     setDragStartX(0)
     velocityRef.current = []
     
-    // Detect flick gesture
+    // Detect flick gesture - either by velocity OR by simple distance
     const isFlick = velocity > FLICK_VELOCITY_THRESHOLD || totalDistance > MIN_FLICK_DISTANCE
+    const isSimpleSwipe = Math.abs(dx) >= MIN_FLICK_DISTANCE // Simple 5+ pixel swipe
     
-    if (isFlick && Math.abs(dx) > 5) {
+    if ((isFlick || isSimpleSwipe) && Math.abs(dx) > 3) {
       if (dx > 0) {
         // Right flick: Explode and schedule
         setExplodingCards(prev => new Set(prev).add(id))
