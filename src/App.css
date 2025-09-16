@@ -1557,11 +1557,15 @@ body:not(.ideas-open) .generator-floating {
 .ideas-overlay.single .idea-list {
   padding-left: 12px;
   padding-right: 12px;
+  /* Prevent single card from stretching vertically */
+  align-items: start;
+  justify-items: center;
 }
 .ideas-overlay.single .idea {
   max-width: 520px;
   margin-left: auto;
   margin-right: auto;
+  height: auto;
 }
 
 /* Center X and platform icon */
