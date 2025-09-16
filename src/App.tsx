@@ -1079,11 +1079,34 @@ export default function App() {
                                 <div key={`${it.id}-${iso}`} className="scheduled-item-wrapper">
                                   <span className="scheduled-time">12:00</span>
                                   {editingScheduledItem === it.id ? (
-                                    // Expanded edit mode
-                                    <div className="scheduled-item-expanded">
+                                    // Full expanded edit mode - like regular idea card
+                                    <div className="scheduled-edit-card">
                                       <div className="idea-header">
                                         <button 
-                                          className="icon-btn ghost edit-save-btn" 
+                                          className="close-card-btn" 
+                                          aria-label="Close card" 
+                                          onClick={() => setEditingScheduledItem(null)}
+                                        >
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="18" y1="6" x2="6" y2="18"/>
+                                            <line x1="6" y1="6" x2="18" y2="18"/>
+                                          </svg>
+                                        </button>
+                                        <button 
+                                          className="regen-btn" 
+                                          aria-label="Regenerate"
+                                          onClick={() => handleRegenerateOne(it.id)}
+                                        >
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                          </svg>
+                                        </button>
+                                        <div className="idea-platform-wrap">
+                                          <PlatformIcon platform={p as SocialPlatform} size={20} />
+                                        </div>
+                                        <button 
+                                          className="accept-btn" 
                                           aria-label="Save changes"
                                           onClick={() => setEditingScheduledItem(null)}
                                         >
@@ -1091,9 +1114,18 @@ export default function App() {
                                             <polyline points="20 6 9 17 4 12"/>
                                           </svg>
                                         </button>
-                                        <div className="idea-platform-wrap">
-                                          <PlatformIcon platform={p as SocialPlatform} size={20} />
-                                        </div>
+                                        <button 
+                                          className="icon-btn trash-btn" 
+                                          aria-label="Delete"
+                                          onClick={() => setIdeas(prev => prev.filter(i => i.id !== it.id))}
+                                        >
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="3 6 5 6 21 6"/>
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2 2h4a2 2 0 0 1 2 2v2"/>
+                                            <line x1="10" y1="11" x2="10" y2="17"/>
+                                            <line x1="14" y1="11" x2="14" y2="17"/>
+                                          </svg>
+                                        </button>
                                       </div>
                                       <div className="idea-box">
                                         <textarea 
@@ -1106,6 +1138,26 @@ export default function App() {
                                           defaultValue={it.copy}
                                           placeholder="Copy text..."
                                         />
+                                      </div>
+                                      <div className="idea-footer">
+                                        <div className="idea-why">
+                                          <strong>Why this works:</strong> {it.why}
+                                        </div>
+                                        <div className="idea-actions">
+                                          <button 
+                                            className="schedule-btn"
+                                            onClick={() => {
+                                              const selectedISOList = Array.from(selectedDates).sort()
+                                              const pool = selectedISOList.length === 0 ? [todayISO] : selectedISOList
+                                              const used = new Set(ideas.filter(i=>i.id!==it.id && i.assignedDate).map(i=>i.assignedDate as string))
+                                              const chosen = pool.find(iso => !used.has(iso)) || pool[0]
+                                              setIdeas(prev => prev.map(i => i.id===it.id ? { ...i, assignedDate: chosen, accepted: true, platform } : i))
+                                              setEditingScheduledItem(null)
+                                            }}
+                                          >
+                                            Reschedule
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   ) : (
