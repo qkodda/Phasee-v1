@@ -1110,28 +1110,37 @@ export default function App() {
                                     </div>
                                   ) : (
                                     // Collapsed view
-                                    <li className="group-item" data-platform={p}>
-                                      <span className="gi-icon"><PlatformIcon platform={p as SocialPlatform} size={14} /></span>
-                                      <span className="gi-visual">
-                                        {`${it.visual.slice(0, 20)}${it.visual.length>20?'…':''} | ${it.copy.slice(0, 20)}${it.copy.length>20?'…':''}`}
-                                      </span>
-                                      <div className="gi-actions">
+                                    <div className="scheduled-item-compact" data-platform={p}>
+                                      <div className="si-icon">
+                                        <PlatformIcon platform={p as SocialPlatform} size={14} />
+                                      </div>
+                                      <div className="si-content">
+                                        <div className="si-field">
+                                          <span className="si-label">Visuals:</span>
+                                          <span className="si-text">{it.visual.slice(0, 25)}{it.visual.length > 25 ? '…' : ''}</span>
+                                        </div>
+                                        <div className="si-field">
+                                          <span className="si-label">Copy:</span>
+                                          <span className="si-text">{it.copy.slice(0, 25)}{it.copy.length > 25 ? '…' : ''}</span>
+                                        </div>
+                                      </div>
+                                      <div className="si-actions">
                                         <button 
-                                          className="icon-btn ghost edit-btn" 
+                                          className="icon-btn edit-btn" 
                                           aria-label="Edit"
                                           onClick={() => setEditingScheduledItem(it.id)}
                                         >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                           </svg>
                                         </button>
                                         <button 
-                                          className="icon-btn ghost trash-btn" 
+                                          className="icon-btn trash-btn" 
                                           aria-label="Delete"
                                           onClick={() => setIdeas(prev => prev.filter(i => i.id !== it.id))}
                                         >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <polyline points="3 6 5 6 21 6"/>
                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                                             <line x1="10" y1="11" x2="10" y2="17"/>
@@ -1139,7 +1148,7 @@ export default function App() {
                                           </svg>
                                         </button>
                                       </div>
-                                    </li>
+                                    </div>
                                   )}
                                 </div>
                               ))}
