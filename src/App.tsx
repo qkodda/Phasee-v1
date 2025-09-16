@@ -285,8 +285,11 @@ export default function App() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profile, notes, count, campaign: campaign && selectedDates.size > 1, sourceDates })
     }).then(r=>r.json()).then(data => {
-      const fromApi: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas)? data.ideas : []
-      const ideasToAdd: IdeaCard[] = (fromApi.length? fromApi : Array.from({length: count}, ()=> generateIdea(profile, notes))).map((g, idx) => {
+      const desired = count
+      const apiIdeas: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas) ? data.ideas.slice(0, desired) : []
+      const filled: { visual:string; copy:string; why?:string }[] = [...apiIdeas]
+      while (filled.length < desired) filled.push(generateIdea(profile, notes))
+      const ideasToAdd: IdeaCard[] = filled.map((g, idx) => {
         const iso = sourceDates[idx % sourceDates.length]
         return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation', platform, proposedDate: iso, accepted: false }
       })

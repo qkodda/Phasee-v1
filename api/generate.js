@@ -30,7 +30,7 @@ export default async function handler(req, res) {
     }
     const client = new OpenAI({ apiKey })
 
-    const prompt = `You are a social media content strategist. Generate ${count} engaging social media post ideas based on the brand profile.
+    const prompt = `You are a social media content strategist. Generate exactly ${count} engaging social media post ideas based on the brand profile. Do not return fewer than ${count}.
 
 BRAND PROFILE:
 ${JSON.stringify(profile || {}, null, 2)}
@@ -42,7 +42,7 @@ REQUIREMENTS:
 - Consider the target audience: ${(profile && profile.audience) || 'general audience'}
 - Align with content goals: ${(profile && profile.contentGoals) || 'brand awareness'}
 - Include visual suggestions that match available capabilities: ${[(profile && profile.hasPhotography) && 'photography', (profile && profile.hasVideo) && 'video', (profile && profile.hasDesign) && 'design'].filter(Boolean).join(', ') || 'basic visuals'}
-${campaign ? `- Treat these posts as one cohesive campaign across the following dates: ${Array.isArray(sourceDates)&&sourceDates.length? sourceDates.join(', ') : 'multiple selected dates'}. Ensure a narrative or thematic link between posts. Avoid repeating the same concept; vary angles while keeping a unifying theme.` : ''}
+${campaign ? `- Treat these posts as one cohesive campaign across the following dates: ${Array.isArray(sourceDates)&&sourceDates.length? sourceDates.join(', ') : 'multiple selected dates'}. Ensure a narrative or thematic link between posts. Avoid repeating the same concept; vary angles while keeping a unifying theme. Each idea must clearly connect to the same sale/product/theme.` : ''}
 
 Return a JSON array with objects containing:
 - "visual": Detailed visual description/concept
@@ -52,7 +52,7 @@ Return a JSON array with objects containing:
 Example format:
 [{"visual": "Behind-the-scenes photo of...", "copy": "Your engaging post text here", "why": "Builds authenticity and trust"}]
 
-Return ONLY the JSON array, no other text.`
+Return ONLY the JSON array, no other text. The array length MUST equal ${count}.`
 
     const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
