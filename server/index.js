@@ -43,7 +43,7 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/generate', async (req, res) => {
   try {
-    const { profile, notes, count = 3, campaign = false, sourceDates = [] } = req.body || {}
+    const { profile, notes, count = 3, campaign = false, sourceDates = [], grounded = true } = req.body || {}
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) return res.status(500).json({ error: 'Missing OPENAI_API_KEY' })
     const client = new OpenAI({ apiKey })
@@ -60,6 +60,9 @@ REQUIREMENTS:
 - Consider the target audience: ${profile?.audience || 'general audience'}
 - Align with content goals: ${profile?.contentGoals || 'brand awareness'}
 - Include visual suggestions that match available capabilities: ${[profile?.hasPhotography && 'photography', profile?.hasVideo && 'video', profile?.hasDesign && 'design'].filter(Boolean).join(', ') || 'basic visuals'}
+${grounded ? `- Emphasize grounded, realistic, low/no-cost ideas achievable by an average person using only a modern smartphone and common household items.
+- Avoid specialized equipment, studios, actors, or complex locations. Keep steps simple and time-light.
+- Each idea must specify a simple, phone-friendly visual setup and a short, plain-language caption prompt.` : ''}
 ${campaign ? `- Treat these posts as one cohesive campaign across the following dates: ${Array.isArray(sourceDates)&&sourceDates.length? sourceDates.join(', ') : 'multiple selected dates'}. Ensure a narrative or thematic link between posts. Avoid repeating the same concept; vary angles while keeping a unifying theme. Each idea must clearly connect to the same sale/product/theme.` : ''}
 
 Return a JSON array with objects containing:

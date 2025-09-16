@@ -90,7 +90,7 @@ const PlatformIcon = memo(function PlatformIcon({ platform, size = 20 }: { platf
   }
 })
 
-function generateIdea(profile: BrandProfile, notes: string) {
+function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = true) {
   const seed = Math.random().toString(36).slice(2,6)
   const base = `${profile.industry || 'Brand'} • ${profile.tone || 'Friendly'}`
   const caps = [profile.hasPhotography?'photo':undefined, profile.hasVideo?'video':undefined, profile.hasDesign?'graphic':undefined].filter(Boolean).join('/')
@@ -104,10 +104,33 @@ function generateIdea(profile: BrandProfile, notes: string) {
     'Drives engagement'
   ]
   const why = whyReasons[Math.floor(Math.random() * whyReasons.length)]
-  return { 
-    visual: `Visual: ${caps || 'asset'} ${seed}`, 
+  if (grounded) {
+    const simpleVisuals = [
+      'Phone photo of product in natural light near a window',
+      'Short handheld video (10-15s) showing usage setup and 1 tip',
+      'Selfie-style clip explaining 1 benefit (quiet room, good light)',
+      'Flat lay on a clean table with 3 related everyday items',
+      'Before/after photo collage using phone editing'
+    ]
+    const prompts = [
+      'Ask followers a simple question related to their routine',
+      'Share 1 actionable tip anyone can do today',
+      'Tell a 2-sentence origin story for this idea',
+      'Highlight 1 feature and 1 benefit, keep under 25 words',
+      'Invite a quick poll in the comments (yes/no)'
+    ]
+    const visual = simpleVisuals[Math.floor(Math.random()*simpleVisuals.length)]
+    const prompt = prompts[Math.floor(Math.random()*prompts.length)]
+    return {
+      visual: `${visual}`,
+      copy: `${base}: ${prompt}. ${notes ? notes.slice(0,80) : ''}`.trim(),
+      why
+    }
+  }
+  return {
+    visual: `Visual: ${caps || 'asset'} ${seed}`,
     copy: `Copy: ${base} — ${notes || 'engagement prompt'} (${seed})`,
-    why: why
+    why
   }
 }
 
@@ -293,12 +316,12 @@ export default function App() {
     const count = Math.min(10, Math.max(1, sourceDates.length))
     fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile, notes, count, campaign: campaign && selectedDates.size > 1, sourceDates })
+      body: JSON.stringify({ profile, notes, count, campaign: campaign && selectedDates.size > 1, sourceDates, grounded: true })
     }).then(r=>r.json()).then(data => {
       const desired = count
       const apiIdeas: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas) ? data.ideas.slice(0, desired) : []
       const filled: { visual:string; copy:string; why?:string }[] = [...apiIdeas]
-      while (filled.length < desired) filled.push(generateIdea(profile, notes))
+      while (filled.length < desired) filled.push(generateIdea(profile, notes, true))
       const ideasToAdd: IdeaCard[] = filled.map((g, idx) => {
         const iso = sourceDates[idx % sourceDates.length]
         return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation', platform, proposedDate: iso, accepted: false }
@@ -331,13 +354,13 @@ export default function App() {
     try {
       const resp = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso] })
+        body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso], grounded: true })
       })
       const data = await resp.json()
-      const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes)
+      const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes, true)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation' } : it))
     } catch {
-      const g = generateIdea(profile, notes)
+      const g = generateIdea(profile, notes, true)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why } : it))
     }
   }, [ideas, profile, notes, campaign, selectedDates, todayISO])
