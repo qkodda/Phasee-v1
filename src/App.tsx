@@ -142,6 +142,34 @@ export default function App() {
   const [editingScheduledItem, setEditingScheduledItem] = useState<string | null>(null)
   const [closedHeight, setClosedHeight] = useState<number>(56)
   const [sheetHeight, setSheetHeight] = useState<number>(56)
+
+  // Click outside handler to close open cards
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as HTMLElement
+      
+      // Don't close if clicking on buttons, inputs, or interactive elements
+      if (target.closest('button, input, textarea, select, .mini-cal, .scheduled-edit-card, .idea')) {
+        return
+      }
+      
+      // Close any open states
+      if (openCalendarFor !== null) {
+        setOpenCalendarFor(null)
+      }
+      if (editingCards.size > 0) {
+        setEditingCards(new Set())
+      }
+      if (editingScheduledItem !== null) {
+        setEditingScheduledItem(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openCalendarFor, editingCards, editingScheduledItem])
   // Drag disabled for bottom sheet; tap to open/close only
   const sheetHeaderRef = useRef<HTMLDivElement | null>(null)
 
