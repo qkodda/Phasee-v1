@@ -320,6 +320,15 @@ export default function App() {
     
     // Strict isolation: only allow if no other card is active AND no other pointer is active
     if (activeDragCard !== null || activePointerIdRef.current !== null) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    
+    // Additional mobile-specific check: ensure this is a primary pointer
+    if (!e.isPrimary) {
+      e.preventDefault()
+      e.stopPropagation()
       return
     }
     
@@ -385,6 +394,11 @@ export default function App() {
       velocity = timeDiff > 0 ? Math.abs(distDiff) / timeDiff : 0
     }
     
+    // Release pointer capture
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch (err) {}
+    
     // Clean up all state
     activePointerIdRef.current = null
     setActiveDragCard(null)
@@ -429,6 +443,11 @@ export default function App() {
   const onCardPointerCancel = useCallback((id: string, e: React.PointerEvent<HTMLDivElement>) => {
     // Only respond if this is the active card AND the correct pointer
     if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
+    
+    // Release pointer capture
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch (err) {}
     
     activePointerIdRef.current = null
     setActiveDragCard(null)
@@ -1199,8 +1218,9 @@ export default function App() {
                     data-card-id={it.id}
                     className={`idea${activeDragCard === it.id ? ' dragging' : ''}${explodingCards.has(it.id) ? ' exploding' : ''}`}
                     style={{ 
-                      transform: `translateX(${activeDragCard === it.id ? dragCurrentX : 0}px)`, 
-                      zIndex: activeDragCard === it.id ? 1000 : (openCalendarFor === it.id ? 999999 : 'auto')
+                      transform: `translateX(${activeDragCard === it.id && activePointerIdRef.current !== null ? dragCurrentX : 0}px)`, 
+                      zIndex: activeDragCard === it.id ? 1000 : (openCalendarFor === it.id ? 999999 : 'auto'),
+                      pointerEvents: activeDragCard !== null && activeDragCard !== it.id ? 'none' : 'auto'
                     }}
                     onPointerDown={(e)=>onCardPointerDown(it.id, e)}
                     onPointerMove={(e)=>onCardPointerMove(it.id, e)}

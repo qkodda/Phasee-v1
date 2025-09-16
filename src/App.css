@@ -820,6 +820,9 @@ textarea.notes-input {
     transform: translate3d(0, 0, 0);
     /* Reduce transition duration for snappier feel */
     transition-duration: 0.2s;
+    /* Enhanced touch isolation */
+    isolation: isolate;
+    contain: layout style paint;
   }
   
   .idea.dragging {
@@ -829,6 +832,16 @@ textarea.notes-input {
     /* Force hardware acceleration */
     -webkit-perspective: 1000px;
     perspective: 1000px;
+    /* Ensure dragging card is isolated */
+    isolation: isolate;
+    contain: layout style paint;
+    z-index: 1000 !important;
+  }
+  
+  /* Prevent other cards from responding during drag */
+  .idea-list:has(.idea.dragging) .idea:not(.dragging) {
+    pointer-events: none;
+    touch-action: none;
   }
   
   /* Reduce animation complexity on mobile */
