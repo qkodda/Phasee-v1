@@ -137,11 +137,19 @@ export default function App() {
   const [dragCurrentX, setDragCurrentX] = useState<number>(0)
   const [dragRawX, setDragRawX] = useState<number>(0)
   const [explodingCards, setExplodingCards] = useState<Set<string>>(new Set())
+  const [isGenerating, setIsGenerating] = useState<boolean>(false)
+  const [createBoom, setCreateBoom] = useState<boolean>(false)
   const velocityRef = useRef<{ x: number; time: number }[]>([])
   const activePointerIdRef = useRef<number | null>(null)
   const [editingScheduledItem, setEditingScheduledItem] = useState<string | null>(null)
   const [closedHeight, setClosedHeight] = useState<number>(56)
   const [sheetHeight, setSheetHeight] = useState<number>(56)
+
+  const closeAllOpen = useCallback(() => {
+    if (openCalendarFor !== null) setOpenCalendarFor(null)
+    if (editingCards.size > 0) setEditingCards(new Set())
+    if (editingScheduledItem !== null) setEditingScheduledItem(null)
+  }, [openCalendarFor, editingCards, editingScheduledItem])
 
   // Click outside handler to close open cards
   useEffect(() => {
@@ -265,6 +273,11 @@ export default function App() {
   const visibleIdeas = useMemo(() => ideas.filter(i => !i.accepted), [ideas])
 
   const handleGenerate = useCallback(() => {
+    // Trigger fun burst and set generating state
+    setCreateBoom(true)
+    setTimeout(() => setCreateBoom(false), 600)
+    setIsGenerating(true)
+    const startTime = Date.now()
     const selectedISOList = Array.from(selectedDates).sort()
     const sourceDates = selectedISOList.length > 0 ? selectedISOList : [todayISO]
     const count = Math.min(10, Math.max(1, sourceDates.length))
@@ -279,6 +292,9 @@ export default function App() {
       })
       setIdeas(prev => [...prev, ...ideasToAdd])
       setSelectedDates(new Set())
+      // Ensure the "Brainstorming!" moment is seen for at least ~800ms
+      const remaining = Math.max(0, 800 - (Date.now() - startTime))
+      setTimeout(() => setIsGenerating(false), remaining)
     }).catch(() => {
       const ideasFallback: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
         const g = generateIdea(profile, notes)
@@ -286,8 +302,10 @@ export default function App() {
       })
       setIdeas(prev => [...prev, ...ideasFallback])
       setSelectedDates(new Set())
+      const remaining = Math.max(0, 800 - (Date.now() - startTime))
+      setTimeout(() => setIsGenerating(false), remaining)
     })
-  }, [selectedDates, todayISO, profile, notes, platform, ideas])
+  }, [selectedDates, todayISO, profile, notes, platform, ideas, campaign])
   const handleRegenerateOne = useCallback(async (id: string) => { 
     const idea = ideas.find(it => it.id === id)
     const iso = idea?.proposedDate || todayISO
@@ -917,7 +935,7 @@ export default function App() {
 
   return (
     <>
-    <div className="screen">
+    <div className="screen" onClick={(e)=>{ const el = e.target as HTMLElement; if (!el.closest('.idea, .mini-cal, .scheduled-edit-card, button, input, textarea, select, .schedule-sheet')) { closeAllOpen() } }}>
       <div className="frame" onClick={(e)=>{ if (sheetHeight > closedHeight + 2) { const el = e.target as HTMLElement; if (!el.closest('.schedule-sheet')) closeSchedule() } }}>
         <div className="header-bar">
           <button className="icon-btn" aria-label="Profile" onClick={()=>setScreen('profile')}>
@@ -1275,12 +1293,12 @@ export default function App() {
       {/* Floating Create Button - bottom of screen when no dates selected */}
       {(selectedDates.size === 0 && visibleIdeas.length === 0) && (
         <div className="generator-floating">
-          <button className="generator-toggle" onClick={handleGenerate} disabled={selectedDates.size === 0}>
+          <button className={"generator-toggle" + (isGenerating ? " generating" : "") + (createBoom ? " boom" : "")} onClick={handleGenerate} disabled={isGenerating}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3"/>
               <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
             </svg>
-            Create
+            {isGenerating ? 'Brainstorming!' : 'Create'}
           </button>
         </div>
       )}
@@ -1319,12 +1337,12 @@ export default function App() {
               onChange={e => setNotes(e.target.value)}
             />
             <div className="generator-actions">
-              <button className="generator-toggle" onClick={handleGenerate} style={{ flex: 1 }}>
+              <button className={"generator-toggle" + (isGenerating ? " generating" : "") + (createBoom ? " boom" : "")} onClick={handleGenerate} style={{ flex: 1 }} disabled={isGenerating}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3"/>
                   <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
                 </svg>
-                Create
+                {isGenerating ? 'Brainstorming!' : 'Create'}
               </button>
             </div>
           </div>
