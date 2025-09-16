@@ -119,7 +119,7 @@ export default function App() {
   const LS_COMPLETED_PROFILE = 'phasee.completedProfile'
   const LS_SELECTED_PLAN = 'phasee.selectedPlan'
   const LS_PLAN_VALUE = 'phasee.plan'
-  const hasCompletedProfile = () => localStorage.getItem(LS_COMPLETED_PROFILE) === '1'
+  // const hasCompletedProfile = () => localStorage.getItem(LS_COMPLETED_PROFILE) === '1'
   const [screen, setScreen] = useState<Screen>('login')
   const [activeSettingsItem, setActiveSettingsItem] = useState<string>('personal')
   const [profile, setProfile] = useState<BrandProfile>({ brandName:'', yearFounded:'', industry:'', audience:'', tone:'', hasPhotography:false, hasVideo:false, hasDesign:false, companyDescription:'', brandCulture:'', contentGoals:'' })
@@ -370,7 +370,7 @@ export default function App() {
     // Only respond if this is the active card AND the correct pointer
     if (activeDragCard !== id || activePointerIdRef.current !== e.pointerId) return
     
-    const now = performance.now()
+    // const now = performance.now()
     const dx = dragCurrentX
     const totalDistance = Math.abs(dx)
     
