@@ -90,7 +90,7 @@ const PlatformIcon = memo(function PlatformIcon({ platform, size = 20 }: { platf
   }
 })
 
-function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = true) {
+function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = true, platform: SocialPlatform = 'instagram', complexity: 'simple' | 'normal' | 'grand' = 'normal') {
   const seed = Math.random().toString(36).slice(2,6)
   const base = `${profile.industry || 'Brand'} • ${profile.tone || 'Friendly'}`
   const caps = [profile.hasPhotography?'photo':undefined, profile.hasVideo?'video':undefined, profile.hasDesign?'graphic':undefined].filter(Boolean).join('/')
@@ -105,26 +105,174 @@ function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = 
   ]
   const why = whyReasons[Math.floor(Math.random() * whyReasons.length)]
   if (grounded) {
-    const simpleVisuals = [
-      'Phone photo of product in natural light near a window',
-      'Short handheld video (10-15s) showing usage setup and 1 tip',
-      'Selfie-style clip explaining 1 benefit (quiet room, good light)',
-      'Flat lay on a clean table with 3 related everyday items',
-      'Before/after photo collage using phone editing'
+    // Industry-specific viral concepts by complexity
+    const industryIdeas = {
+      'Real Estate': {
+        simple: [
+          'Quick phone video tour pointing out 3 best features of the house',
+          'Take a selfie in each room with one-sentence description',
+          'Film yourself unlocking the front door with excitement',
+          'Show the view from the best window in the house',
+          'Quick before/after of staging one room'
+        ],
+        normal: [
+          'Host an "Open House in Pajamas" event - film yourself giving tours in cozy PJs with coffee, emphasizing comfort of home',
+          'Create a "Bathtub Listing Reviews" series - film yourself in work attire in a bathtub reviewing properties with rubber ducks as props',
+          'Night-time open house with string lights and hot cocoa - film the magical evening ambiance and cozy viewing experience',
+          'Speed-tour challenge: Show entire house in 60 seconds using creative transitions and upbeat music',
+          '"House vs My Apartment" comparison videos showing why this listing beats your current cramped space'
+        ],
+        grand: [
+          'Organize a "House Olympics" event - set up fun challenges in each room (living room limbo, kitchen cook-off, bedroom pillow fight) and film families competing',
+          'Create a full cinematic short film telling the "story" of the house - hire actors to play previous owners, dramatic lighting, original soundtrack',
+          'Host a "Mystery House" treasure hunt - hide clues throughout the property leading to a grand prize, film families solving puzzles',
+          'Transform the house into a themed experience (haunted mansion, tropical paradise, winter wonderland) for one weekend and document the transformation',
+          'Organize a "House Swap Challenge" - bring in interior designers to completely redesign rooms in 24 hours while filming the entire process'
+        ]
+      },
+      'Food': {
+        simple: [
+          'Show your signature dish ingredients in 30 seconds',
+          'Quick tip while prepping one ingredient',
+          'Film yourself tasting and reacting to your own food',
+          'Show the "money shot" of your best-looking dish',
+          'Quick behind-the-scenes of your busiest hour'
+        ],
+        normal: [
+          'Cook the recipe blindfolded while explaining each step - builds suspense and shows expertise',
+          '"What I eat vs What I serve customers" honest behind-the-scenes comparison',
+          'Speed-cook challenge: Make signature dish in 2 minutes with time-lapse and dramatic music',
+          'Cook while answering rapid-fire questions about your business - multitasking content',
+          '"Recreating childhood comfort food with a professional twist" nostalgic angle'
+        ],
+        grand: [
+          'Host a "Chopped" style competition in your restaurant with local influencers using mystery ingredients',
+          'Create a pop-up restaurant in an unusual location (rooftop, beach, forest) and document the entire experience',
+          'Challenge yourself to create 50 dishes in 50 days, each inspired by a different country, and document the journey',
+          'Transform your restaurant into different themed experiences each week (medieval tavern, space station, underwater) with full costume and decor',
+          'Organize a "Food Truck Road Trip" across your state, collaborating with local chefs and documenting cultural food exchanges'
+        ]
+      },
+      'Fitness': {
+        simple: [
+          'Show one exercise you can do anywhere in 15 seconds',
+          'Quick form check: common mistake vs correct technique',
+          'Film your pre-workout routine in real-time',
+          'Show your favorite healthy snack prep',
+          'Quick mobility stretch you can do at your desk'
+        ],
+        normal: [
+          'Workout in unusual locations: elevator, grocery store aisle, waiting room - "fitness anywhere" concept',
+          '"Getting ready for gym vs reality" expectation vs reality comedy series',
+          'Exercise using only household items - creative equipment substitutions',
+          'Micro-workouts during TV commercial breaks - practical fitness integration',
+          '"What trainers actually eat" day-in-the-life food diary with honest commentary'
+        ],
+        grand: [
+          'Create a city-wide fitness scavenger hunt using landmarks as workout stations, document participants\' journeys',
+          'Organize a "Fitness Festival" in your community with obstacle courses, food trucks, and live music',
+          'Challenge yourself to try 100 different workout styles in 100 days and document the physical and mental changes',
+          'Create an outdoor "Gym in the Wild" using natural elements (logs, rocks, hills) and teach survival fitness',
+          'Organize a charity fitness marathon where you do different workouts for 24 hours straight, raising money for local causes'
+        ]
+      },
+      'Beauty': {
+        simple: [
+          'Show your 60-second morning routine',
+          'Quick before/after of one makeup step',
+          'Film yourself removing makeup at end of day',
+          'Show your favorite product in action',
+          'Quick tip while doing your own makeup'
+        ],
+        normal: [
+          '"Doing makeup in weird lighting" challenge - car, bathroom, office fluorescents',
+          'Speed makeup using only 3 products - minimalist beauty approach',
+          '"Makeup looks inspired by my coffee order" creative theme series',
+          'Getting ready while answering customer questions - multitasking beauty routine',
+          '"Recreating viral makeup trends with drugstore products" budget-friendly alternatives'
+        ],
+        grand: [
+          'Create a "Beauty Through the Decades" series with full historical accuracy, costumes, and settings for each era',
+          'Organize a "Makeup Transformation Challenge" where you completely change people\'s looks to match their dream careers',
+          'Host a "Beauty Olympics" with makeup artists competing in speed, creativity, and technical challenges',
+          'Create a traveling "Beauty Bus" that brings free makeovers to underserved communities and document the stories',
+          'Challenge yourself to create 365 different looks in one year, each inspired by a different art movement or culture'
+        ]
+      },
+      'Tech': {
+        simple: [
+          'Show one tech tip in 30 seconds',
+          'Quick screen recording of a useful shortcut',
+          'Film your actual workspace setup',
+          'Show before/after of organizing digital files',
+          'Quick reaction to latest tech news'
+        ],
+        normal: [
+          '"Explaining tech to my grandma" series - complex concepts in simple terms',
+          'Speed-setup challenges: "Setting up workspace in 60 seconds"',
+          '"Tech fails that taught me everything" vulnerability and learning stories',
+          'Using tech in unexpected ways - creative problem-solving content',
+          '"Day in life of your data" - following information through systems creatively'
+        ],
+        grand: [
+          'Build a fully automated smart home from scratch and document every step, challenge, and breakthrough',
+          'Create a "Tech Time Machine" series where you use only technology from different decades to complete modern tasks',
+          'Organize a "Hackathon for Good" where teams compete to solve local community problems with technology',
+          'Challenge yourself to live completely off-grid for 30 days while documenting alternative tech solutions',
+          'Create a "Digital Detox Retreat" experience and document people\'s transformations without technology'
+        ]
+      }
+    }
+
+    // Platform-specific trends and timing
+    const platformTrends = {
+      'instagram': ['Carousel tutorials', 'Behind-the-scenes stories', 'Before/after reveals', 'Day-in-life content', 'Quick tips in Reels'],
+      'facebook': ['Community polls', 'Live Q&As', 'Event announcements', 'Customer spotlights', 'Educational carousels'],
+      'x': ['Thread tutorials', 'Hot takes on trends', 'Quick tips', 'Industry commentary', 'Real-time updates']
+    }
+
+    // Viral hooks and formats
+    const viralHooks = [
+      'POV: You\'re a [profession] and...',
+      'Things nobody tells you about [industry]',
+      'Red flags in [industry] that everyone ignores',
+      'Plot twist: I\'m actually...',
+      'This [industry] hack will change your life',
+      'Why I quit [common practice] and you should too',
+      'Unpopular opinion about [industry]',
+      'The [industry] secret they don\'t want you to know'
     ]
-    const prompts = [
-      'Ask followers a simple question related to their routine',
-      'Share 1 actionable tip anyone can do today',
-      'Tell a 2-sentence origin story for this idea',
-      'Highlight 1 feature and 1 benefit, keep under 25 words',
-      'Invite a quick poll in the comments (yes/no)'
+
+    // Get industry-specific ideas or fallback to general creative concepts
+    const industry = profile.industry || 'Business'
+    const industryData = industryIdeas[industry as keyof typeof industryIdeas]
+    const specificIdeas = industryData?.[complexity] || [
+      complexity === 'simple' ? 'Quick behind-the-scenes of your daily routine' :
+      complexity === 'grand' ? 'Create a documentary-style series about your industry transformation' :
+      'Behind-the-scenes of your biggest mistake and what you learned',
+      complexity === 'simple' ? 'Show your workspace in 30 seconds' :
+      complexity === 'grand' ? 'Organize a community event around your expertise and document the impact' :
+      'Speed-challenge: Complete your main task in record time with commentary',
+      complexity === 'simple' ? 'Quick tip while working' :
+      complexity === 'grand' ? 'Create an immersive experience that teaches your skills to others' :
+      'Day-in-life but every hour you switch to a different work style/location'
     ]
-    const visual = simpleVisuals[Math.floor(Math.random()*simpleVisuals.length)]
-    const prompt = prompts[Math.floor(Math.random()*prompts.length)]
+
+    // Combine elements for unique concepts
+    const concept = specificIdeas[Math.floor(Math.random() * specificIdeas.length)]
+    const hook = viralHooks[Math.floor(Math.random() * viralHooks.length)]
+    const currentPlatform = platform as keyof typeof platformTrends
+    const platformTrend = platformTrends[currentPlatform] || platformTrends['instagram']
+    const format = platformTrend[Math.floor(Math.random() * platformTrend.length)]
+
+    // Create engaging copy that incorporates user notes
+    const userContext = notes ? ` Focus on: ${notes}` : ''
+    const copy = `${hook.replace('[profession]', industry.toLowerCase()).replace('[industry]', industry)} ${userContext}`.trim()
+
     return {
-      visual: `${visual}`,
-      copy: `${base}: ${prompt}. ${notes ? notes.slice(0,80) : ''}`.trim(),
-      why
+      visual: `${concept}`,
+      copy: `${copy} | Format: ${format}`,
+      why: `Leverages ${industry} trends + viral format + platform-specific engagement patterns`
     }
   }
   return {
@@ -321,7 +469,7 @@ export default function App() {
       const desired = count
       const apiIdeas: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas) ? data.ideas.slice(0, desired) : []
       const filled: { visual:string; copy:string; why?:string }[] = [...apiIdeas]
-      while (filled.length < desired) filled.push(generateIdea(profile, notes, true))
+        while (filled.length < desired) filled.push(generateIdea(profile, notes, true, platform))
       const ideasToAdd: IdeaCard[] = filled.map((g, idx) => {
         const iso = sourceDates[idx % sourceDates.length]
         return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation', platform, proposedDate: iso, accepted: false }
@@ -336,7 +484,7 @@ export default function App() {
       }, remaining)
     }).catch(() => {
       const ideasFallback: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
-        const g = generateIdea(profile, notes)
+        const g = generateIdea(profile, notes, true, platform)
         return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why, platform, proposedDate: iso, accepted: false }
       })
       setIdeas(prev => [...prev, ...ideasFallback])
@@ -348,22 +496,30 @@ export default function App() {
       }, remaining)
     })
   }, [selectedDates, todayISO, profile, notes, platform, ideas, campaign])
-  const handleRegenerateOne = useCallback(async (id: string) => { 
+  const handleRegenerateOne = useCallback(async (id: string, complexity: 'simple' | 'normal' | 'grand' = 'normal') => { 
     const idea = ideas.find(it => it.id === id)
     const iso = idea?.proposedDate || todayISO
     try {
       const resp = await fetch('/api/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso], grounded: true })
+        body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso], grounded: true, complexity })
       })
       const data = await resp.json()
-      const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes, true)
+       const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes, true, platform, complexity)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation' } : it))
     } catch {
-      const g = generateIdea(profile, notes, true)
+      const g = generateIdea(profile, notes, true, platform, complexity)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why } : it))
     }
-  }, [ideas, profile, notes, campaign, selectedDates, todayISO])
+  }, [ideas, profile, notes, campaign, selectedDates, todayISO, platform])
+
+  const handleSimplifyIdea = useCallback((id: string) => {
+    handleRegenerateOne(id, 'simple')
+  }, [handleRegenerateOne])
+
+  const handleAmplifyIdea = useCallback((id: string) => {
+    handleRegenerateOne(id, 'grand')
+  }, [handleRegenerateOne])
   
   const handleAssign = useCallback((id: string, iso: string) => { 
     setIdeas(prev => prev.map(it => it.id===id ? { ...it, assignedDate: iso } : it)) 
@@ -509,7 +665,7 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('settings')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <span />
           </div>
@@ -547,7 +703,7 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('settings')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <span />
           </div>
@@ -601,7 +757,7 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('settings')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <span />
           </div>
@@ -637,7 +793,7 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('home')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <span />
           </div>
@@ -736,7 +892,7 @@ export default function App() {
           <div className="header-bar">
             <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('home')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
-              <img src="/header-logo.png" alt="Header logo" className="brand-logo" />
+              <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
             <button className="icon-btn" aria-label="Settings" onClick={()=>setScreen('settings')}>
               <img src={`${import.meta.env.BASE_URL}settings.svg`} alt="Settings" />
@@ -1335,33 +1491,49 @@ export default function App() {
                     </div>
 
                     <div className="idea-actions">
-                      <button 
-                        className="icon-btn ghost edit-save-btn" 
-                        aria-label={editingCards.has(it.id) ? "Save" : "Edit"} 
-                        onClick={()=>{
-                          if (editingCards.has(it.id)) {
-                            setEditingCards(prev => {
-                              const next = new Set(prev)
-                              next.delete(it.id)
-                              return next
-                            })
-                          } else {
-                            setEditingCards(prev => new Set([...prev, it.id]))
-                          }
-                        }}
-                      >
-                        {editingCards.has(it.id) ? (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        ) : (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                        )}
-                      </button>
-                      
-                      {/* Optimize button temporarily removed as requested */}
-                      <div className="actions-right">
-                        <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
+                      <div className="actions-left">
+                        <button 
+                          className="icon-btn ghost edit-save-btn" 
+                          aria-label={editingCards.has(it.id) ? "Save" : "Edit"} 
+                          onClick={()=>{
+                            if (editingCards.has(it.id)) {
+                              setEditingCards(prev => {
+                                const next = new Set(prev)
+                                next.delete(it.id)
+                                return next
+                              })
+                            } else {
+                              setEditingCards(prev => new Set([...prev, it.id]))
+                            }
+                          }}
+                        >
+                          {editingCards.has(it.id) ? (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          ) : (
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                          )}
                         </button>
+                      </div>
+
+                       {/* Centered regenerate controls */}
+                       <div className="actions-center">
+                         <button className="icon-btn ghost simplify-btn" aria-label="Simplify idea" title="Make it simpler" onClick={()=>handleSimplifyIdea(it.id)}>
+                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                             <line x1="5" y1="12" x2="19" y2="12"/>
+                           </svg>
+                         </button>
+                         <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
+                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
+                         </button>
+                         <button className="icon-btn ghost amplify-btn" aria-label="Amplify idea" title="Make it bigger" onClick={()=>handleAmplifyIdea(it.id)}>
+                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                             <line x1="12" y1="5" x2="12" y2="19"/>
+                             <line x1="5" y1="12" x2="19" y2="12"/>
+                           </svg>
+                         </button>
+                       </div>
+
+                      <div className="actions-right">
                         <button className="icon-btn ghost accept-btn" aria-label="Accept" title="Accept/Schedule" onClick={()=>assignToNextAvailableSelectedDate(it.id)}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </button>

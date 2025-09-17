@@ -41,7 +41,7 @@ body.ideas-open { overflow-y: hidden; }
   touch-action: pan-y; /* Allow vertical panning within frame if needed */
 }
 .brand { font-weight: 800; font-size: 28px; margin-bottom: 2px; text-align: center; }
-.brand-logo { display: inline-block; max-width: 91px; width: 100%; height: auto; justify-self: center; }
+.brand-logo { display: inline-block; max-width: 137px; width: 100%; height: auto; justify-self: center; }
 
 .header-bar { display: grid; grid-template-columns: 32px 1fr 32px; align-items: center; column-gap: 4px; margin-bottom: -8px; margin-top: -1px; width: 100%; padding: 0 3%; }
 .header-bar .brand { position: relative; top: 2px; }
@@ -620,6 +620,42 @@ button.ghost { background: transparent; }
   background: rgba(99, 102, 241, 0.15);
   transform: scale(1.05);
 }
+
+.simplify-btn { 
+  border: 0; 
+  color: #f59e0b; 
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  transition: all 160ms ease;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.simplify-btn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  transform: scale(1.05);
+}
+
+.amplify-btn { 
+  border: 0; 
+  color: #10b981; 
+  padding: 6px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.1);
+  transition: all 160ms ease;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.amplify-btn:hover {
+  background: rgba(16, 185, 129, 0.15);
+  transform: scale(1.05);
+}
 .accept-btn { 
   border: 0; 
   color: #10b981; 
@@ -1046,15 +1082,28 @@ textarea.notes-input {
   min-height: 40px;
 }
 .idea-actions {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
   padding-top: 6px;
   border-top: 1px solid #f1f5f9;
 }
-.actions-right {
+.idea-actions .actions-left {
   display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+.idea-actions .actions-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+}
+.idea-actions .actions-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
   gap: 6px;
 }
 .inline-text {
@@ -1482,12 +1531,17 @@ body:not(.ideas-open) .generator-floating {
   margin: 0 auto;
 }
 
+/* Single card sizing */
+.ideas-overlay.single .ideas.card { max-width: 520px !important; }
+.ideas-overlay.single .idea-list { align-items: start; justify-items: center; }
+.ideas-overlay.single .idea { width: 100% !important; max-width: 520px !important; margin-left: auto; margin-right: auto; }
+
 .ideas-overlay .idea-list { 
   height: calc(100dvh - 140px); 
   max-height: none; 
   overflow-y: auto; 
   -webkit-overflow-scrolling: touch; 
-  overflow-x: visible; 
+  overflow-x: hidden; 
   padding: 8px 16px calc(env(safe-area-inset-bottom, 0) + 24px); 
   margin: 0; 
   width: 100%; 
@@ -1498,6 +1552,10 @@ body:not(.ideas-open) .generator-floating {
 .ideas-overlay .idea {
   display: flex;
   flex-direction: column;
+  width: min(520px, 92vw);
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .ideas-overlay .idea-content {
@@ -1557,15 +1615,11 @@ body:not(.ideas-open) .generator-floating {
 .ideas-overlay.single .idea-list {
   padding-left: 12px;
   padding-right: 12px;
-  /* Prevent single card from stretching vertically */
-  align-items: start;
-  justify-items: center;
 }
 .ideas-overlay.single .idea {
   max-width: 520px;
   margin-left: auto;
   margin-right: auto;
-  height: auto;
 }
 
 /* Center X and platform icon */
