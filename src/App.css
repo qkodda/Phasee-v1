@@ -865,8 +865,8 @@ textarea.notes-input {
   touch-action: pan-x; 
   will-change: transform; 
   animation: fadeIn 400ms ease-out;
-  width: 306px;
-  max-width: 306px;
+  width: 240px;
+  max-width: 240px;
   margin: 0 auto 12px;
   box-sizing: border-box;
   /* Optimize for hardware acceleration */
@@ -1517,6 +1517,15 @@ body:not(.ideas-open) .generator-floating {
   padding: 0; 
   overflow: visible; 
 }
+.ideas-overlay.crowded {
+  align-items: flex-start;
+  padding-top: 110px; /* space for header + month scroller */
+}
+
+.ideas-overlay.crowded .idea-list {
+  height: calc(100dvh - 110px);
+}
+
 
 .ideas-overlay .ideas.card { 
   background: transparent; 
@@ -1532,9 +1541,9 @@ body:not(.ideas-open) .generator-floating {
 }
 
 /* Single card sizing */
-.ideas-overlay.single .ideas.card { max-width: 520px !important; }
+.ideas-overlay.single .ideas.card { max-width: 360px !important; }
 .ideas-overlay.single .idea-list { align-items: start; justify-items: center; }
-.ideas-overlay.single .idea { width: 100% !important; max-width: 520px !important; margin-left: auto; margin-right: auto; }
+.ideas-overlay.single .idea { width: 100% !important; max-width: 360px !important; margin-left: auto; margin-right: auto; }
 
 .ideas-overlay .idea-list { 
   height: calc(100dvh - 140px); 
@@ -1552,8 +1561,8 @@ body:not(.ideas-open) .generator-floating {
 .ideas-overlay .idea {
   display: flex;
   flex-direction: column;
-  width: min(520px, 92vw);
-  max-width: 520px;
+  width: min(360px, 88vw);
+  max-width: 360px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -1617,7 +1626,7 @@ body:not(.ideas-open) .generator-floating {
   padding-right: 12px;
 }
 .ideas-overlay.single .idea {
-  max-width: 520px;
+  max-width: 360px;
   margin-left: auto;
   margin-right: auto;
 }

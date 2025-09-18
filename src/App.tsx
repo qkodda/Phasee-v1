@@ -1398,7 +1398,7 @@ export default function App() {
 
       {/* Ideas section */}
       {visibleIdeas.length > 0 && (
-        <div className={"ideas-overlay" + (visibleIdeas.length === 1 ? " single" : "")} onClick={(e)=>{ if (e.currentTarget === e.target) { setIdeas([]) } }}>
+        <div className={"ideas-overlay" + (visibleIdeas.length === 1 ? " single" : "") + (visibleIdeas.length >= 3 ? " crowded" : "")} onClick={(e)=>{ if (e.currentTarget === e.target) { setIdeas([]) } }}>
           <div className="ideas card">
             {visibleIdeas.length===0 ? <div className="muted">No ideas yet.</div> : (
               <div className="idea-list">
