@@ -90,7 +90,7 @@ const PlatformIcon = memo(function PlatformIcon({ platform, size = 20 }: { platf
   }
 })
 
-function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = true, platform: SocialPlatform = 'instagram', complexity: 'simple' | 'normal' | 'grand' = 'normal') {
+function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = true, platform: SocialPlatform = 'instagram', complexity: 'simple' | 'normal' | 'grand' = 'normal', usedConcepts: Set<string> = new Set(), totalCount: number = 1) {
   const seed = Math.random().toString(36).slice(2,6)
   const base = `${profile.industry || 'Brand'} • ${profile.tone || 'Friendly'}`
   const caps = [profile.hasPhotography?'photo':undefined, profile.hasVideo?'video':undefined, profile.hasDesign?'graphic':undefined].filter(Boolean).join('/')
@@ -113,21 +113,46 @@ function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = 
           'Take a selfie in each room with one-sentence description',
           'Film yourself unlocking the front door with excitement',
           'Show the view from the best window in the house',
-          'Quick before/after of staging one room'
+          'Quick before/after of staging one room',
+          'Film the neighborhood walk-through highlighting local gems',
+          'Show your "first impression" reaction entering the property',
+          'Quick comparison: "This house vs last week\'s listing"',
+          'Film the key handover moment with new homeowners',
+          'Show the most unique architectural detail up close',
+          'Quick "realtor hack" for staging this specific property type',
+          'Film your morning coffee routine in the kitchen',
+          'Show the sunset/sunrise view from the best room',
+          'Quick "price per square foot breakdown" visual explanation',
+          'Film yourself measuring rooms with funny commentary'
         ],
         normal: [
           'Host an "Open House in Pajamas" event - film yourself giving tours in cozy PJs with coffee, emphasizing comfort of home',
           'Create a "Bathtub Listing Reviews" series - film yourself in work attire in a bathtub reviewing properties with rubber ducks as props',
           'Night-time open house with string lights and hot cocoa - film the magical evening ambiance and cozy viewing experience',
           'Speed-tour challenge: Show entire house in 60 seconds using creative transitions and upbeat music',
-          '"House vs My Apartment" comparison videos showing why this listing beats your current cramped space'
+          '"House vs My Apartment" comparison videos showing why this listing beats your current cramped space',
+          'Create a "House Personality Test" - match potential buyers to rooms based on their lifestyle',
+          'Film a "What Would You Change?" series where you redesign spaces with different budgets',
+          'Host "Coffee with a Realtor" - casual morning chats in beautiful kitchens discussing market trends',
+          'Create "House Horoscopes" - match zodiac signs to perfect home features',
+          'Film "Realtor Reacts" to viral home design trends and rate their practicality',
+          'Host "First-Time Buyer Bootcamp" in actual listings, teaching negotiation in real scenarios',
+          'Create "House Hunting Bingo" with followers, checking off features during live tours',
+          'Film "Realtor vs Interior Designer" friendly competitions in staging rooms',
+          'Host "Neighborhood Detective" series uncovering hidden local history and amenities',
+          'Create "House Flip or Flop" predictions, then follow up with actual renovation outcomes'
         ],
         grand: [
           'Organize a "House Olympics" event - set up fun challenges in each room (living room limbo, kitchen cook-off, bedroom pillow fight) and film families competing',
           'Create a full cinematic short film telling the "story" of the house - hire actors to play previous owners, dramatic lighting, original soundtrack',
           'Host a "Mystery House" treasure hunt - hide clues throughout the property leading to a grand prize, film families solving puzzles',
           'Transform the house into a themed experience (haunted mansion, tropical paradise, winter wonderland) for one weekend and document the transformation',
-          'Organize a "House Swap Challenge" - bring in interior designers to completely redesign rooms in 24 hours while filming the entire process'
+          'Organize a "House Swap Challenge" - bring in interior designers to completely redesign rooms in 24 hours while filming the entire process',
+          'Create a "Real Estate Reality Show" following multiple families through their entire buying journey with weekly episodes',
+          'Host a "Tiny House Challenge" - live in 200 sq ft for a week to appreciate space, document the experience',
+          'Organize a "Community Build Day" - rally neighbors to improve a property together, document the transformation and relationships formed',
+          'Create a "Time Capsule House" - bury items from current era, document ceremony, create 50-year follow-up plan',
+          'Host a "House Auction Takeover" - buy a property live on social media with follower input on every decision'
         ]
       },
       'Food': {
@@ -243,36 +268,60 @@ function generateIdea(profile: BrandProfile, notes: string, grounded: boolean = 
       'The [industry] secret they don\'t want you to know'
     ]
 
+    // Auto-scale complexity for larger quantities
+    let adjustedComplexity = complexity
+    if (totalCount > 7 && complexity === 'simple') {
+      adjustedComplexity = 'normal' // Upgrade simple to normal for week+ content
+    } else if (totalCount > 14 && complexity === 'normal') {
+      adjustedComplexity = 'grand' // Upgrade normal to grand for 2+ weeks
+    }
+
     // Get industry-specific ideas or fallback to general creative concepts
     const industry = profile.industry || 'Business'
     const industryData = industryIdeas[industry as keyof typeof industryIdeas]
-    const specificIdeas = industryData?.[complexity] || [
-      complexity === 'simple' ? 'Quick behind-the-scenes of your daily routine' :
-      complexity === 'grand' ? 'Create a documentary-style series about your industry transformation' :
+    const specificIdeas = industryData?.[adjustedComplexity] || [
+      adjustedComplexity === 'simple' ? 'Quick behind-the-scenes of your daily routine' :
+      adjustedComplexity === 'grand' ? 'Create a documentary-style series about your industry transformation' :
       'Behind-the-scenes of your biggest mistake and what you learned',
-      complexity === 'simple' ? 'Show your workspace in 30 seconds' :
-      complexity === 'grand' ? 'Organize a community event around your expertise and document the impact' :
+      adjustedComplexity === 'simple' ? 'Show your workspace in 30 seconds' :
+      adjustedComplexity === 'grand' ? 'Organize a community event around your expertise and document the impact' :
       'Speed-challenge: Complete your main task in record time with commentary',
-      complexity === 'simple' ? 'Quick tip while working' :
-      complexity === 'grand' ? 'Create an immersive experience that teaches your skills to others' :
+      adjustedComplexity === 'simple' ? 'Quick tip while working' :
+      adjustedComplexity === 'grand' ? 'Create an immersive experience that teaches your skills to others' :
       'Day-in-life but every hour you switch to a different work style/location'
     ]
 
+    // Find unique concepts (avoid repeats)
+    let availableConcepts = specificIdeas.filter(concept => !usedConcepts.has(concept))
+    if (availableConcepts.length === 0) {
+      // If all concepts used, reset and add variations
+      availableConcepts = specificIdeas.map(concept => `${concept} (Part ${Math.floor(Math.random() * 3) + 2})`)
+    }
+
     // Combine elements for unique concepts
-    const concept = specificIdeas[Math.floor(Math.random() * specificIdeas.length)]
+    const concept = availableConcepts[Math.floor(Math.random() * availableConcepts.length)]
+    usedConcepts.add(concept)
+    
     const hook = viralHooks[Math.floor(Math.random() * viralHooks.length)]
     const currentPlatform = platform as keyof typeof platformTrends
     const platformTrend = platformTrends[currentPlatform] || platformTrends['instagram']
     const format = platformTrend[Math.floor(Math.random() * platformTrend.length)]
 
-    // Create engaging copy that incorporates user notes
+    // Create more varied copy based on quantity
     const userContext = notes ? ` Focus on: ${notes}` : ''
-    const copy = `${hook.replace('[profession]', industry.toLowerCase()).replace('[industry]', industry)} ${userContext}`.trim()
+    const copyVariations = [
+      `${hook.replace('[profession]', industry.toLowerCase()).replace('[industry]', industry)} ${userContext}`,
+      `${concept.split(' - ')[0]} challenge ${userContext}`,
+      `Weekly series: ${concept.split('.')[0]} ${userContext}`,
+      `${industry} insider tip: ${concept.split(' ')[0].toLowerCase()} strategy ${userContext}`,
+      `Behind-the-scenes: ${concept.split(' ')[0]} ${userContext}`
+    ]
+    const copy = copyVariations[Math.floor(Math.random() * copyVariations.length)].trim()
 
     return {
       visual: `${concept}`,
       copy: `${copy} | Format: ${format}`,
-      why: `Leverages ${industry} trends + viral format + platform-specific engagement patterns`
+      why: `Leverages ${industry} trends + viral format + platform-specific engagement patterns + uniqueness tracking`
     }
   }
   return {
@@ -469,7 +518,10 @@ export default function App() {
       const desired = count
       const apiIdeas: { visual:string; copy:string; why?:string }[] = Array.isArray(data?.ideas) ? data.ideas.slice(0, desired) : []
       const filled: { visual:string; copy:string; why?:string }[] = [...apiIdeas]
-        while (filled.length < desired) filled.push(generateIdea(profile, notes, true, platform))
+      const usedConcepts = new Set<string>()
+      while (filled.length < desired) {
+        filled.push(generateIdea(profile, notes, true, platform, 'normal', usedConcepts, desired))
+      }
       const ideasToAdd: IdeaCard[] = filled.map((g, idx) => {
         const iso = sourceDates[idx % sourceDates.length]
         return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation', platform, proposedDate: iso, accepted: false }
@@ -483,8 +535,9 @@ export default function App() {
         setGeneratingText('Brainstorming!')
       }, remaining)
     }).catch(() => {
+      const usedConcepts = new Set<string>()
       const ideasFallback: IdeaCard[] = sourceDates.slice(0, count).map((iso) => {
-        const g = generateIdea(profile, notes, true, platform)
+        const g = generateIdea(profile, notes, true, platform, 'normal', usedConcepts, count)
         return { id: generateId(), visual: g.visual, copy: g.copy, why: g.why, platform, proposedDate: iso, accepted: false }
       })
       setIdeas(prev => [...prev, ...ideasFallback])
@@ -505,10 +558,10 @@ export default function App() {
         body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso], grounded: true, complexity })
       })
       const data = await resp.json()
-       const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes, true, platform, complexity)
+       const g = (Array.isArray(data?.ideas) && data.ideas[0]) || generateIdea(profile, notes, true, platform, complexity, new Set(), 1)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why || 'AI-generated recommendation' } : it))
     } catch {
-      const g = generateIdea(profile, notes, true, platform, complexity)
+      const g = generateIdea(profile, notes, true, platform, complexity, new Set(), 1)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, visual: g.visual, copy: g.copy, why: g.why } : it))
     }
   }, [ideas, profile, notes, campaign, selectedDates, todayISO, platform])
