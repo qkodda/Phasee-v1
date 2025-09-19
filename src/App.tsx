@@ -687,7 +687,7 @@ export default function App() {
               <label className="inline">Full Name <input placeholder="Your full name" value="John Smith" /></label>
               <label className="inline">Email <input placeholder="name@company.com" value="john@company.com" /></label>
               
-              <div className="section">Preferences</div>
+              
               
               <div className="row split">
                 <button className="ghost">Cancel</button>
