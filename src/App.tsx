@@ -818,17 +818,11 @@ export default function App() {
             <div className="settings-header"><span className="settings-icon">❓</span><span className="settings-title">Help & Support</span></div>
             <div className="divider" />
             <div className="stack">
-              <div className="section">Get Help</div>
               <button className="ghost" style={{justifySelf: 'start'}}>📚 Help Center</button>
-              <button className="ghost" style={{justifySelf: 'start'}}>💬 Contact Support</button>
-              <button className="ghost" style={{justifySelf: 'start'}}>🎥 Video Tutorials</button>
-              
-              <div className="section">Resources</div>
+
               <button className="ghost" style={{justifySelf: 'start'}}>📖 User Guide</button>
-              <button className="ghost" style={{justifySelf: 'start'}}>🚀 What's New</button>
-              <button className="ghost" style={{justifySelf: 'start'}}>💡 Feature Requests</button>
-              
-              <div className="section">Contact Information</div>
+
+              <div className="section">Contact</div>
               <div className="muted left">Email: support@phasee.app</div>
               <div className="muted left">Response time: Within 24 hours</div>
               <div className="muted left">Version: 2.1.0</div>
