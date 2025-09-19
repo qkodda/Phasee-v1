@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback, memo } from 'react'
 import type { SVGProps } from 'react'
 import './App.css'
+import { auth, userAPI, brandAPI } from './auth'
+import type { User } from './auth'
 
-type Screen = 'login' | 'profile' | 'subscription' | 'home' | 'settings' | 'settings.personal' | 'settings.security' | 'settings.notifications' | 'settings.help'
+type Screen = 'login' | 'register' | 'profile' | 'subscription' | 'home' | 'settings' | 'settings.personal' | 'settings.security' | 'settings.notifications' | 'settings.help'
 
 type BrandProfile = {
   brandName: string
@@ -341,8 +343,28 @@ export default function App() {
   const LS_PLAN_VALUE = 'phasee.plan'
   // const hasCompletedProfile = () => localStorage.getItem(LS_COMPLETED_PROFILE) === '1'
   const [screen, setScreen] = useState<Screen>('login')
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [activeSettingsItem, setActiveSettingsItem] = useState<string>('personal')
   const [profile, setProfile] = useState<BrandProfile>({ brandName:'', yearFounded:'', industry:'', audience:'', tone:'', hasPhotography:false, hasVideo:false, hasDesign:false, companyDescription:'', brandCulture:'', contentGoals:'' })
+  
+  // Registration form state
+  const [registerForm, setRegisterForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: ''
+  })
+  const [registerError, setRegisterError] = useState<string>('')
+  const [isRegistering, setIsRegistering] = useState<boolean>(false)
+
+  // Login form state
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: ''
+  })
+  const [loginError, setLoginError] = useState<string>('')
+  const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false)
   const [plan, setPlan] = useState<PlanKey>('d30')
   const [ideas, setIdeas] = useState<IdeaCard[]>([])
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set())
@@ -366,6 +388,85 @@ export default function App() {
     if (editingCards.size > 0) setEditingCards(new Set())
     if (editingScheduledItem !== null) setEditingScheduledItem(null)
   }, [openCalendarFor, editingCards, editingScheduledItem])
+
+  // Check for existing user session on app load
+  useEffect(() => {
+    const user = auth.getCurrentUser()
+    if (user) {
+      console.log('Found existing user session:', user)
+      setCurrentUser(user)
+      setScreen('home')
+      // Load user's brand profile
+      brandAPI.getProfile(user.id).then(result => {
+        console.log('Profile load result:', result)
+        if (result.success) {
+          console.log('Setting profile:', result.profile)
+          setProfile(result.profile)
+        } else {
+          console.log('Failed to load profile:', result.error)
+        }
+      }).catch(error => {
+        console.error('Error loading profile:', error)
+      })
+    } else {
+      console.log('No existing user session found')
+    }
+  }, [])
+
+  // Handle user registration
+  const handleRegister = useCallback(async () => {
+    setRegisterError('')
+    
+    // Validation
+    if (!registerForm.firstName.trim()) {
+      setRegisterError('First name is required')
+      return
+    }
+    if (!registerForm.email.trim()) {
+      setRegisterError('Email is required')
+      return
+    }
+    if (!registerForm.password) {
+      setRegisterError('Password is required')
+      return
+    }
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setRegisterError('Passwords do not match')
+      return
+    }
+    if (registerForm.password.length < 6) {
+      setRegisterError('Password must be at least 6 characters')
+      return
+    }
+
+    setIsRegistering(true)
+    
+    try {
+      console.log('Attempting to register user:', registerForm.email)
+      const result = await userAPI.register(
+        registerForm.email.trim(),
+        registerForm.password,
+        registerForm.firstName.trim(),
+        registerForm.lastName.trim()
+      )
+      
+      console.log('Registration result:', result)
+      
+      if (result.success) {
+        console.log('Registration successful, setting user and navigating to profile')
+        setCurrentUser(result.user)
+        setScreen('profile') // Take them to profile setup
+      } else {
+        console.log('Registration failed:', result.error)
+        setRegisterError(result.error || 'Registration failed')
+      }
+    } catch (error) {
+      console.error('Registration network error:', error)
+      setRegisterError('Network error. Please try again.')
+    } finally {
+      setIsRegistering(false)
+    }
+  }, [registerForm])
 
   // Click outside handler to close open cards
   useEffect(() => {
@@ -486,7 +587,19 @@ export default function App() {
   const weekdays = ['SUN','MON','TUE','WED','THU','FRI','SAT']
   const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long' }).format(viewDate)
 
-  const visibleIdeas = useMemo(() => ideas.filter(i => !i.accepted), [ideas])
+  const visibleIdeas = useMemo(() => {
+    return ideas
+      .filter(i => !i.accepted)
+      .sort((a, b) => {
+        // Sort by proposed date (earliest first), then by creation order
+        if (a.proposedDate && b.proposedDate) {
+          return a.proposedDate.localeCompare(b.proposedDate)
+        }
+        if (a.proposedDate && !b.proposedDate) return -1
+        if (!a.proposedDate && b.proposedDate) return 1
+        return a.id.localeCompare(b.id) // fallback to ID order
+      })
+  }, [ideas])
   // Toggle body class to control background scroll when overlay is shown
   useEffect(() => {
     if (visibleIdeas.length > 0) {
@@ -662,10 +775,51 @@ export default function App() {
     }
   }
 
-  function handleLogin() {
-    // Always go to home screen for login - returning users should see homepage
-    setScreen('home')
-  }
+  // Handle user login
+  const handleLogin = useCallback(async () => {
+    setLoginError('')
+    
+    // Validation
+    if (!loginForm.email.trim()) {
+      setLoginError('Email is required')
+      return
+    }
+    if (!loginForm.password) {
+      setLoginError('Password is required')
+      return
+    }
+
+    setIsLoggingIn(true)
+    
+    try {
+      console.log('Attempting to login user:', loginForm.email)
+      const result = await userAPI.login(
+        loginForm.email.trim(),
+        loginForm.password
+      )
+      
+      console.log('Login result:', result)
+      
+      if (result.success) {
+        console.log('Login successful, setting user and navigating to home')
+        setCurrentUser(result.user)
+        // Load user's brand profile
+        const profileResult = await brandAPI.getProfile(result.user.id)
+        if (profileResult.success) {
+          setProfile(profileResult.profile)
+        }
+        setScreen('home')
+      } else {
+        console.log('Login failed:', result.error)
+        setLoginError(result.error || 'Login failed')
+      }
+    } catch (error) {
+      console.error('Login network error:', error)
+      setLoginError('Network error. Please try again.')
+    } finally {
+      setIsLoggingIn(false)
+    }
+  }, [loginForm])
 
   // Settings subpages
   if (screen === 'settings.personal') {
@@ -692,7 +846,7 @@ export default function App() {
               <div className="row split">
                 <button className="ghost">Cancel</button>
                 <button className="primary">Save Changes</button>
-              </div>
+          </div>
             </div>
           </div>
         </div>
@@ -885,7 +1039,15 @@ export default function App() {
 
             <div className="divider" />
 
-            <button className="logout-row" type="button">
+            <button className="logout-row" type="button" onClick={() => {
+              console.log('Logging out user')
+              auth.logout()
+              setCurrentUser(null)
+              setProfile({ brandName:'', yearFounded:'', industry:'', audience:'', tone:'', hasPhotography:false, hasVideo:false, hasDesign:false, companyDescription:'', brandCulture:'', contentGoals:'' })
+              setLoginForm({ email: '', password: '' })
+              setLoginError('')
+              setScreen('login')
+            }}>
               <span className="logout-icon" aria-hidden="true">
                 {/* logout */}
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -908,13 +1070,100 @@ export default function App() {
           <div className="login-card">
             <h2 className="title">Start Building!</h2>
             <div className="stack">
-              <input placeholder="Email" />
-              <input placeholder="Password" type="password" />
+              <input 
+                placeholder="Email" 
+                type="email"
+                value={loginForm.email}
+                onChange={e => setLoginForm({...loginForm, email: e.target.value})}
+              />
+              <input 
+                placeholder="Password" 
+                type="password"
+                value={loginForm.password}
+                onChange={e => setLoginForm({...loginForm, password: e.target.value})}
+              />
+              
+              {loginError && (
+                <div className="error-message" style={{color: '#ef4444', fontSize: '14px', textAlign: 'center'}}>
+                  {loginError}
+                </div>
+              )}
+              
               <div className="row split">
-                <button className="ghost" onClick={() => { localStorage.setItem(LS_COMPLETED_PROFILE, '1'); setScreen('profile') }}>Create account</button>
-                <button className="primary" onClick={handleLogin}>Log in</button>
+                <button className="ghost" onClick={() => setScreen('register')}>Create account</button>
+                <button 
+                  className="primary" 
+                  onClick={handleLogin}
+                  disabled={isLoggingIn}
+                >
+                  {isLoggingIn ? 'Logging in...' : 'Log in'}
+                </button>
               </div>
               <button className="text" type="button">Having issues logging in?</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (screen === 'register') {
+    return (
+      <div className="screen login-screen">
+        <div className="frame">
+          <div className="login-logo">
+            <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
+          </div>
+          <div className="login-card">
+            <h2 className="title">Create Your Account</h2>
+            <div className="stack">
+              <div className="row split">
+                <input 
+                  placeholder="First Name" 
+                  value={registerForm.firstName}
+                  onChange={e => setRegisterForm({...registerForm, firstName: e.target.value})}
+                />
+                <input 
+                  placeholder="Last Name" 
+                  value={registerForm.lastName}
+                  onChange={e => setRegisterForm({...registerForm, lastName: e.target.value})}
+                />
+              </div>
+              <input 
+                placeholder="Email" 
+                type="email"
+                value={registerForm.email}
+                onChange={e => setRegisterForm({...registerForm, email: e.target.value})}
+              />
+              <input 
+                placeholder="Password" 
+                type="password"
+                value={registerForm.password}
+                onChange={e => setRegisterForm({...registerForm, password: e.target.value})}
+              />
+              <input 
+                placeholder="Confirm Password" 
+                type="password"
+                value={registerForm.confirmPassword}
+                onChange={e => setRegisterForm({...registerForm, confirmPassword: e.target.value})}
+              />
+              
+              {registerError && (
+                <div className="error-message" style={{color: '#ef4444', fontSize: '14px', textAlign: 'center'}}>
+                  {registerError}
+                </div>
+              )}
+              
+              <div className="row split">
+                <button className="ghost" onClick={() => setScreen('login')}>Back to Login</button>
+                <button 
+                  className="primary" 
+                  onClick={handleRegister}
+                  disabled={isRegistering}
+                >
+                  {isRegistering ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -959,7 +1208,20 @@ export default function App() {
               <label className="check"><input type="checkbox" checked={profile.hasVideo} onChange={e=>setProfile({ ...profile, hasVideo:e.target.checked })} /> Video</label>
               <label className="check"><input type="checkbox" checked={profile.hasDesign} onChange={e=>setProfile({ ...profile, hasDesign:e.target.checked })} /> Design</label>
 
-              <button className="primary update-btn" onClick={() => { localStorage.setItem(LS_COMPLETED_PROFILE, '1'); setScreen('home') }}>Update</button>
+              <button className="primary update-btn" onClick={async () => { 
+                if (currentUser) {
+                  const result = await brandAPI.saveProfile(currentUser.id, profile)
+                  if (result.success) {
+                    localStorage.setItem(LS_COMPLETED_PROFILE, '1')
+                    setScreen('home')
+                  } else {
+                    alert('Failed to save profile: ' + result.error)
+                  }
+                } else {
+                  localStorage.setItem(LS_COMPLETED_PROFILE, '1')
+                  setScreen('home')
+                }
+              }}>Update</button>
             </div>
           </div>
         </div>
@@ -972,7 +1234,7 @@ export default function App() {
       <div className="screen">
         <div className="frame">
           <div className="header-bar">
-            <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('profile')}>←</button>
+            <button className="icon-btn" aria-label="Back" onClick={()=>setScreen('settings')}>←</button>
             <button className="logo-btn" aria-label="Home" onClick={()=>setScreen('home')}>
               <img src={`${import.meta.env.BASE_URL}header-logo.png`} alt="Header logo" className="brand-logo" />
             </button>
@@ -1124,40 +1386,40 @@ export default function App() {
                       </button>
                     )
                   })}
-                  {monthDays.map(d => {
-                    const isSelected = selectedDates.has(d.iso)
-                    const isToday = d.iso === todayISO
+              {monthDays.map(d => {
+                const isSelected = selectedDates.has(d.iso)
+                const isToday = d.iso === todayISO
                     const isPast = d.iso < todayISO
                     const platformCounts = platformCountsByDate[d.iso] || {}
-                    const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
+                const entries = Object.entries(platformCounts) as [SocialPlatform, number][]
                     const icons = entries.reduce((acc, [, count]) => acc + count, 0)
-                    const isThree = entries.length >= 3
+                const isThree = entries.length >= 3
                     const renderSelected = isSelected
-                    return (
-                      <button
-                        key={d.iso}
+                return (
+                  <button
+                    key={d.iso}
                         className={'cell' + (renderSelected ? ' selected' : '') + (!renderSelected && isToday ? ' today' : '') + (isPast ? ' past' : '')}
                         disabled={isPast}
-                        onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(d.iso)) { next.delete(d.iso) } else { next.add(d.iso) } return next })}
-                      ><span className="day-label">{d.day}<sup className="ord">{ordinalSuffix(d.day)}</sup></span>
+                    onClick={() => setSelectedDates(prev => { const next = new Set(prev); if (next.has(d.iso)) { next.delete(d.iso) } else { next.add(d.iso) } return next })}
+                  ><span className="day-label">{d.day}<sup className="ord">{ordinalSuffix(d.day)}</sup></span>
                         {icons > 0 && (
-                          <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
-                            {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
-                              const posClass = isThree
-                                ? (idx3 === 0 ? ' chip-pos-bl' : idx3 === 1 ? ' chip-pos-br' : ' chip-pos-tr')
-                                : ''
-                              return (
-                                <span key={`${d.iso}-${p}`} className={"chip-icon" + posClass}>
+                      <div className={"chip-icons" + (isThree ? " three" : "")} aria-hidden="true">
+                        {(isThree ? entries.slice(0,3) : entries).map(([p, count], idx3) => {
+                          const posClass = isThree
+                            ? (idx3 === 0 ? ' chip-pos-bl' : idx3 === 1 ? ' chip-pos-br' : ' chip-pos-tr')
+                            : ''
+                          return (
+                            <span key={`${d.iso}-${p}`} className={"chip-icon" + posClass}>
                                   <PlatformIcon platform={p as SocialPlatform} size={12} />
-                                  {count > 1 ? <sup className="chip-count">{count}</sup> : null}
-                                </span>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
+                              {count > 1 ? <sup className="chip-count">{count}</sup> : null}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
                   {(() => {
                     const totalCells = firstDayOffset + monthDays.length
                     const trailing = (7 - (totalCells % 7)) % 7
@@ -1192,7 +1454,7 @@ export default function App() {
                   SHARE
                 </button>
               )}
-            </div>
+          </div>
 
 
             {/* Schedule section moved here */}
@@ -1209,27 +1471,27 @@ export default function App() {
                   }
                   
                   return datesWithScheduled.map((iso) => {
-                    const scheduled = ideas.filter(i => i.accepted && i.assignedDate === iso)
-                    if (scheduled.length === 0) return null
-                  const groups = scheduled.reduce<Record<SocialPlatform, IdeaCard[]>>((acc, it) => {
-                    const key = (it.platform || platform) as SocialPlatform
-                    if (!acc[key]) acc[key] = []
-                    acc[key].push(it)
-                    return acc
-                  }, {} as Record<SocialPlatform, IdeaCard[]>)
+                const scheduled = ideas.filter(i => i.accepted && i.assignedDate === iso)
+                if (scheduled.length === 0) return null
+                const groups = scheduled.reduce<Record<SocialPlatform, IdeaCard[]>>((acc, it) => {
+                  const key = (it.platform || platform) as SocialPlatform
+                  if (!acc[key]) acc[key] = []
+                  acc[key].push(it)
+                  return acc
+                }, {} as Record<SocialPlatform, IdeaCard[]>)
                   
-                  return (
+                return (
                     <div key={`schedule-${iso}`} className="scheduled card">
-                      <div className="scheduled-header">
-                        <div className="scheduled-date">{fmtMDYFromISO(iso)}</div>
-                        <div className="scheduled-count muted small">{scheduled.length} scheduled</div>
-                      </div>
-                      <div className="scheduled-groups">
-                        {Object.entries(groups).map(([p, items]) => (
-                          <div key={`${iso}-${p}`} className="scheduled-group">
-                            <div className="group-head" />
-                            <ul className="group-list">
-                              {items.map(it => (
+                    <div className="scheduled-header">
+                      <div className="scheduled-date">{fmtMDYFromISO(iso)}</div>
+                      <div className="scheduled-count muted small">{scheduled.length} scheduled</div>
+                    </div>
+                    <div className="scheduled-groups">
+                      {Object.entries(groups).map(([p, items]) => (
+                        <div key={`${iso}-${p}`} className="scheduled-group">
+                          <div className="group-head" />
+                          <ul className="group-list">
+                            {items.map(it => (
                                 <div key={`${it.id}-${iso}`} className="scheduled-item-wrapper">
                                   <span className="scheduled-time">12:00</span>
                                   {editingScheduledItem === it.id ? (
@@ -1245,7 +1507,7 @@ export default function App() {
                                             <line x1="18" y1="6" x2="6" y2="18"/>
                                             <line x1="6" y1="6" x2="18" y2="18"/>
                                           </svg>
-                                        </button>
+                                </button>
                                         <button 
                                           className="regen-btn" 
                                           aria-label="Regenerate"
@@ -1255,7 +1517,7 @@ export default function App() {
                                             <polyline points="23 4 23 10 17 10"/>
                                             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                                           </svg>
-                                        </button>
+                                </button>
                                         <div className="idea-platform-wrap">
                                           <PlatformIcon platform={p as SocialPlatform} size={20} />
                                         </div>
@@ -1357,20 +1619,20 @@ export default function App() {
                                     </div>
                                   )}
                                 </div>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
-                      </div>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
                     </div>
-                  )
+                  </div>
+                )
                   })
                 })()}
               </div>
             </div>
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
 
 
 
@@ -1383,8 +1645,8 @@ export default function App() {
               <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
             </svg>
             {isGenerating ? generatingText : 'Create'}
-          </button>
-        </div>
+                  </button>
+              </div>
       )}
 
       {/* Floating Create Overlay - appears above all content when dates selected */}
@@ -1405,14 +1667,14 @@ export default function App() {
                 {selectedDates.size} day{selectedDates.size !== 1 ? 's' : ''} selected
               </div>
               <label className={`campaign-checkbox${selectedDates.size < 2 ? ' disabled' : ''}`}>
-                <input
-                  type="checkbox"
+                  <input
+                    type="checkbox"
                   checked={campaign}
                   disabled={selectedDates.size < 2}
                   onChange={e => setCampaign(e.target.checked)}
                 />
                 <span>Make it a campaign!</span>
-              </label>
+                </label>
             </div>
             <textarea 
               className="generator-text-input"
@@ -1427,10 +1689,10 @@ export default function App() {
                   <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1"/>
                 </svg>
                 {isGenerating ? generatingText : 'Create'}
-              </button>
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
       )}
 
       {/* Ideas section */}
@@ -1459,9 +1721,9 @@ export default function App() {
                       </button>
                       <div className="idea-right-controls">
                         <div className="idea-date-time">
-                          <button className="date-trigger" type="button" onClick={()=>setOpenCalendarFor(prev => prev===it.id ? null : it.id)}>
-                            {it.assignedDate ? fmtMDYFromISO(it.assignedDate) : (it.proposedDate ? fmtMDYFromISO(it.proposedDate) : 'Assign to date…')}
-                          </button>
+                      <button className="date-trigger" type="button" onClick={()=>setOpenCalendarFor(prev => prev===it.id ? null : it.id)}>
+                        {it.assignedDate ? fmtMDYFromISO(it.assignedDate) : (it.proposedDate ? fmtMDYFromISO(it.proposedDate) : 'Assign to date…')}
+                      </button>
                           <select className="idea-time-select" defaultValue="12:00">
                             {Array.from({length:24}).map((_,h)=>{
                               const value = String(h).padStart(2,'0') + ':00'
@@ -1476,30 +1738,30 @@ export default function App() {
                       </div>
                     </div>
                     
-                    {openCalendarFor === it.id && (
-                      <div className="mini-cal" role="dialog" aria-label="Select date">
-                        <div className="mini-cal-header">{monthLabel}</div>
-                        <div className="mini-cal-weekdays">
-                          {weekdays.map(w => (
-                            <div key={w} className="mini-weekday">{w}</div>
-                          ))}
+                      {openCalendarFor === it.id && (
+                        <div className="mini-cal" role="dialog" aria-label="Select date">
+                          <div className="mini-cal-header">{monthLabel}</div>
+                          <div className="mini-cal-weekdays">
+                            {weekdays.map(w => (
+                              <div key={w} className="mini-weekday">{w}</div>
+                            ))}
+                          </div>
+                          <div className="mini-cal-grid">
+                            {Array.from({ length: firstDayOffset }).map((_, idx) => (
+                              <div key={`mblank-${idx}`} className="mini-cell empty" />
+                            ))}
+                            {monthDays.map(d => (
+                              <button
+                                key={`m-${d.iso}`}
+                                className={'mini-cell' + (it.assignedDate===d.iso ? ' selected' : '')}
+                                onClick={()=>{ handleAssign(it.id, d.iso); setOpenCalendarFor(null) }}
+                              >
+                                {d.day}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div className="mini-cal-grid">
-                          {Array.from({ length: firstDayOffset }).map((_, idx) => (
-                            <div key={`mblank-${idx}`} className="mini-cell empty" />
-                          ))}
-                          {monthDays.map(d => (
-                            <button
-                              key={`m-${d.iso}`}
-                              className={'mini-cell' + (it.assignedDate===d.iso ? ' selected' : '')}
-                              onClick={()=>{ handleAssign(it.id, d.iso); setOpenCalendarFor(null) }}
-                            >
-                              {d.day}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      )}
 
                     <div className="idea-content">
                       <div className="idea-box">
@@ -1559,9 +1821,9 @@ export default function App() {
                              <line x1="5" y1="12" x2="19" y2="12"/>
                            </svg>
                          </button>
-                         <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
-                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
-                         </button>
+                        <button className="icon-btn ghost regen-btn" aria-label="Regenerate" onClick={()=>handleRegenerateOne(it.id)}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        </button>
                          <button className="icon-btn ghost amplify-btn" aria-label="Amplify idea" title="Make it bigger" onClick={()=>handleAmplifyIdea(it.id)}>
                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                              <line x1="12" y1="5" x2="12" y2="19"/>
@@ -1584,7 +1846,7 @@ export default function App() {
         </div>
       )}
 
-    </div>
+      </div>
     </>
   )
 }

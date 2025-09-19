@@ -865,9 +865,11 @@ textarea.notes-input {
   touch-action: pan-x; 
   will-change: transform; 
   animation: fadeIn 400ms ease-out;
-  width: 240px;
-  max-width: 240px;
+  width: 320px;
+  max-width: 320px;
+  min-width: 320px;
   margin: 0 auto 12px;
+  flex-shrink: 0;
   box-sizing: border-box;
   /* Optimize for hardware acceleration */
   transform: translate3d(0, 0, 0);
@@ -1499,14 +1501,14 @@ body:not(.ideas-open) .generator-floating {
 /* Ideas overlay */
 .ideas-overlay {
   position: fixed;
-  top: 0;
+  top: 60px; /* Start below header bar */
   left: 0;
   right: 0;
   bottom: env(safe-area-inset-bottom, 0);
   background: transparent;
   z-index: 999;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 20px;
   overflow: hidden; /* block background scroll; inner list scrolls */
@@ -1519,11 +1521,11 @@ body:not(.ideas-open) .generator-floating {
 }
 .ideas-overlay.crowded {
   align-items: flex-start;
-  padding-top: 110px; /* space for header + month scroller */
+  padding-top: 20px; /* Reduced since we already start below header */
 }
 
 .ideas-overlay.crowded .idea-list {
-  height: calc(100dvh - 110px);
+  height: calc(100dvh - 80px); /* Adjusted for new top position */
 }
 
 
@@ -1541,30 +1543,44 @@ body:not(.ideas-open) .generator-floating {
 }
 
 /* Single card sizing */
-.ideas-overlay.single .ideas.card { max-width: 360px !important; }
+.ideas-overlay.single .ideas.card { max-width: 320px !important; }
 .ideas-overlay.single .idea-list { align-items: start; justify-items: center; }
-.ideas-overlay.single .idea { width: 100% !important; max-width: 360px !important; margin-left: auto; margin-right: auto; }
+.ideas-overlay.single .idea { 
+  width: 320px !important; 
+  max-width: 320px !important; 
+  min-width: 320px !important;
+  margin-left: auto; 
+  margin-right: auto; 
+}
 
 .ideas-overlay .idea-list { 
-  height: calc(100dvh - 140px); 
+  height: calc(100dvh - 80px); /* Adjusted for new top position */
   max-height: none; 
   overflow-y: auto; 
   -webkit-overflow-scrolling: touch; 
   overflow-x: hidden; 
-  padding: 8px 16px calc(env(safe-area-inset-bottom, 0) + 24px); 
+  padding: 8px 35px calc(env(safe-area-inset-bottom, 0) + 24px); 
   margin: 0; 
   width: 100%; 
-  box-sizing: border-box; 
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-/* Ensure a single open idea card doesn't expand beyond the viewport */
+/* Fixed dimensions for all idea cards in overlay */
 .ideas-overlay .idea {
   display: flex;
   flex-direction: column;
-  width: min(360px, 88vw);
-  max-width: 360px;
+  width: 320px;
+  max-width: 320px;
+  min-width: 320px;
+  max-height: calc(90vh - 180px); /* 10% shorter than viewport */
   margin-left: auto;
   margin-right: auto;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .ideas-overlay .idea-content {
@@ -1618,18 +1634,7 @@ body:not(.ideas-open) .generator-floating {
 }
 
 /* Single-card sizing tweaks for ideas overlay */
-.ideas-overlay.single .ideas.card {
-  max-width: 520px;
-}
-.ideas-overlay.single .idea-list {
-  padding-left: 12px;
-  padding-right: 12px;
-}
-.ideas-overlay.single .idea {
-  max-width: 360px;
-  margin-left: auto;
-  margin-right: auto;
-}
+/* Removed duplicate single card rules - consolidated above */
 
 /* Center X and platform icon */
 .idea-header { display: grid; grid-template-columns: 24px 1fr 24px; align-items: center; gap: 8px; }
