@@ -680,24 +680,14 @@ export default function App() {
             <span />
           </div>
           <div className="card settings">
-            <div className="settings-header"><span className="settings-icon">👤</span><span className="settings-title">Personal Details</span></div>
+            <div className="settings-header"><span className="settings-icon">👤</span><span className="settings-title">Account Information</span></div>
             <div className="divider" />
             <div className="stack">
-              <div className="section">Account Information</div>
+              <div className="section">Personal Details</div>
               <label className="inline">Full Name <input placeholder="Your full name" value="John Smith" /></label>
               <label className="inline">Email <input placeholder="name@company.com" value="john@company.com" /></label>
-              <label className="inline">Company <input placeholder="Company name" value="Acme Corp" /></label>
-              <label className="inline">Role <input placeholder="Your role" value="Marketing Manager" /></label>
               
               <div className="section">Preferences</div>
-              <label className="check">
-                <input type="checkbox" defaultChecked />
-                <span>Email notifications</span>
-              </label>
-              <label className="check">
-                <input type="checkbox" />
-                <span>Weekly summary reports</span>
-              </label>
               
               <div className="row split">
                 <button className="ghost">Cancel</button>
