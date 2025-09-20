@@ -1,4 +1,6 @@
 // Simple authentication utilities for frontend
+import { API_ENDPOINTS } from './config'
+
 const AUTH_KEY = 'phasee.auth'
 
 export interface User {
@@ -64,7 +66,7 @@ export const auth = {
 export const userAPI = {
   // Register new user
   async register(email: string, password: string, firstName = '', lastName = '') {
-    const response = await fetch('/api/auth/register', {
+    const response = await fetch(API_ENDPOINTS.REGISTER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, firstName, lastName })
@@ -81,7 +83,7 @@ export const userAPI = {
 
   // Login user
   async login(email: string, password: string) {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch(API_ENDPOINTS.LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -98,7 +100,7 @@ export const userAPI = {
 
   // Update user profile
   async updateProfile(userId: string, updates: Partial<User>) {
-    const response = await fetch(`/api/users/${userId}`, {
+    const response = await fetch(API_ENDPOINTS.USER_PROFILE(userId), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
@@ -122,7 +124,7 @@ export const userAPI = {
 export const brandAPI = {
   // Get brand profile
   async getProfile(userId: string) {
-    const response = await fetch(`/api/brand-profile/${userId}`)
+    const response = await fetch(API_ENDPOINTS.BRAND_PROFILE_GET(userId))
     const data = await response.json()
     
     if (response.ok) {
@@ -134,7 +136,7 @@ export const brandAPI = {
 
   // Save brand profile
   async saveProfile(userId: string, profile: BrandProfile) {
-    const response = await fetch('/api/brand-profile', {
+    const response = await fetch(API_ENDPOINTS.BRAND_PROFILE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, ...profile })
@@ -153,7 +155,7 @@ export const brandAPI = {
 export const settingsAPI = {
   // Get user settings
   async getSettings(userId: string) {
-    const response = await fetch(`/api/settings/${userId}`)
+    const response = await fetch(API_ENDPOINTS.SETTINGS_GET(userId))
     const data = await response.json()
     
     if (response.ok) {
@@ -165,7 +167,7 @@ export const settingsAPI = {
 
   // Save setting
   async saveSetting(userId: string, settingKey: string, settingValue: any) {
-    const response = await fetch('/api/settings', {
+    const response = await fetch(API_ENDPOINTS.SETTINGS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, settingKey, settingValue })

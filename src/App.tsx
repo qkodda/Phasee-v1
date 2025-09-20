@@ -3,6 +3,7 @@ import type { SVGProps } from 'react'
 import './App.css'
 import { auth, userAPI, brandAPI } from './auth'
 import type { User } from './auth'
+import { API_ENDPOINTS } from './config'
 
 type Screen = 'login' | 'register' | 'profile' | 'subscription' | 'home' | 'settings' | 'settings.personal' | 'settings.security' | 'settings.notifications' | 'settings.help'
 
@@ -624,7 +625,7 @@ export default function App() {
     const selectedISOList = Array.from(selectedDates).sort()
     const sourceDates = selectedISOList.length > 0 ? selectedISOList : [todayISO]
     const count = Math.min(10, Math.max(1, sourceDates.length))
-    fetch('/api/generate', {
+    fetch(API_ENDPOINTS.GENERATE, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ profile, notes, count, campaign: campaign && selectedDates.size > 1, sourceDates, grounded: true })
     }).then(r=>r.json()).then(data => {
@@ -666,7 +667,7 @@ export default function App() {
     const idea = ideas.find(it => it.id === id)
     const iso = idea?.proposedDate || todayISO
     try {
-      const resp = await fetch('/api/generate', {
+      const resp = await fetch(API_ENDPOINTS.GENERATE, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ profile, notes, count: 1, campaign: campaign && selectedDates.size > 1, sourceDates: [iso], grounded: true, complexity })
       })
@@ -723,7 +724,7 @@ export default function App() {
     // If a date is already designated on the card, just accept it and keep that date
     if (idea?.assignedDate) {
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
-      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea.id, visual: idea.visual, copy: idea.copy, why: idea.why, assignedDate: idea.assignedDate, platform, accepted: true }) }) } catch {}
+      try { fetch(API_ENDPOINTS.IDEAS, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea.id, visual: idea.visual, copy: idea.copy, why: idea.why, assignedDate: idea.assignedDate, platform, accepted: true }) }) } catch {}
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -732,7 +733,7 @@ export default function App() {
       const target = idea?.proposedDate || todayISO
       handleAssign(id, target)
       setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
-      try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, why: idea?.why, assignedDate: target, platform, accepted: true }) }) } catch {}
+      try { fetch(API_ENDPOINTS.IDEAS, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, why: idea?.why, assignedDate: target, platform, accepted: true }) }) } catch {}
       if (openCalendarFor === id) setOpenCalendarFor(null)
       return
     }
@@ -742,7 +743,7 @@ export default function App() {
     const assignIso = preferred && !used.has(preferred) ? preferred : nextFromSelection
     handleAssign(id, assignIso)
     setIdeas(prev => prev.map(it => it.id===id ? { ...it, accepted: true, platform } : it))
-    try { fetch('/api/ideas', { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, why: idea?.why, assignedDate: assignIso, platform, accepted: true }) }) } catch {}
+    try { fetch(API_ENDPOINTS.IDEAS, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ id: idea?.id, visual: idea?.visual, copy: idea?.copy, why: idea?.why, assignedDate: assignIso, platform, accepted: true }) }) } catch {}
     if (openCalendarFor === id) setOpenCalendarFor(null)
   }
 

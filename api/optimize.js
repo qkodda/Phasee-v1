@@ -1,27 +1,13 @@
-// Vercel Serverless Function: /api/optimize
-// Mirrors the local Express endpoint for optimization
-
+// Content optimization endpoint
 import OpenAI from 'openai'
-
-function parseBody(req) {
-  return new Promise((resolve) => {
-    let data = ''
-    req.on('data', (chunk) => { data += chunk })
-    req.on('end', () => {
-      try { resolve(JSON.parse(data || '{}')) } catch { resolve({}) }
-    })
-    req.on('error', () => resolve({}))
-  })
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method Not Allowed' })
-    return
+    return res.status(405).json({ error: 'Method not allowed' })
   }
+  
   try {
-    const body = req.body && Object.keys(req.body).length ? req.body : await parseBody(req)
-    const { visual, copy, platform, profile } = body || {}
+    const { visual, copy, platform, profile } = req.body || {}
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) return res.status(500).json({ error: 'Missing OPENAI_API_KEY' })
     const client = new OpenAI({ apiKey })
@@ -33,7 +19,7 @@ Visual: ${visual}
 Copy: ${copy}
 
 BRAND CONTEXT:
-${JSON.stringify(profile || {}, null, 2)}
+${JSON.stringify(profile, null, 2)}
 
 OPTIMIZATION GOALS:
 - Increase engagement and reach
@@ -56,10 +42,8 @@ Return ONLY the JSON object, no other text.`
     })
     const text = completion.choices?.[0]?.message?.content || '{}'
     const result = JSON.parse(text)
-    res.status(200).json(result)
+    res.json(result)
   } catch (err) {
-    res.status(500).json({ error: String(err?.message || err) })
+    res.status(500).json({ error: String(err.message || err) })
   }
 }
-
-
